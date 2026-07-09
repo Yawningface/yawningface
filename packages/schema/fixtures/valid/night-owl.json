@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "blocklists": [
+    {
+      "id": "better-sleep",
+      "name": "Better Sleep",
+      "metadata": {
+        "enabled": true,
+        "severity": "block",
+        "devices": ["mobile", "tablet"],
+        "timeZone": "Europe/Madrid",
+        "timePeriods": [
+          {
+            "startTime": "22:00",
+            "endTime": "07:00",
+            "schedule": []
+          }
+        ]
+      },
+      "targets": {
+        "websites": ["youtube.com", "tiktok.com", "reddit.com"],
+        "apps": ["YouTube", "TikTok"]
+      },
+      "exceptions": []
+    }
+  ]
+}

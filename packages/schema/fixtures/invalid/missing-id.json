@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "blocklists": [
+    {
+      "name": "No id here",
+      "metadata": {
+        "enabled": true,
+        "severity": "block",
+        "devices": ["desktop"]
+      },
+      "targets": { "websites": [], "apps": [] },
+      "exceptions": []
+    }
+  ]
+}

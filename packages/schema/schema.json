@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yawningface.org/schema/config-v1.json",
+  "title": "YawningFace block config (v1)",
+  "description": "The cross-device contract. One document per user; the cloud stores it verbatim (last write wins); every client evaluates it locally. Unknown fields must be preserved round-trip.",
+  "type": "object",
+  "required": ["version", "blocklists"],
+  "properties": {
+    "version": { "const": 1 },
+    "blocklists": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocklist" }
+    }
+  },
+  "$defs": {
+    "blocklist": {
+      "type": "object",
+      "required": ["id", "name", "metadata", "targets"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "metadata": { "$ref": "#/$defs/metadata" },
+        "targets": { "$ref": "#/$defs/targets" },
+        "exceptions": {
+          "type": "array",
+          "description": "Reserved for v2 (temporary allowances / smart friction). Always [] in v1."
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["enabled", "severity", "devices"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": { "enum": ["block", "warn"] },
+        "devices": {
+          "type": "array",
+          "items": { "enum": ["desktop", "mobile", "tablet"] }
+        },
+        "timeZone": {
+          "type": "string",
+          "description": "IANA zone name. Informational in v1: clients evaluate in their own local time."
+        },
+        "timePeriods": {
+          "type": "array",
+          "description": "Active windows. Empty or missing = always active while enabled.",
+          "items": { "$ref": "#/$defs/timePeriod" }
+        }
+      }
+    },
+    "timePeriod": {
+      "type": "object",
+      "required": ["startTime", "endTime", "schedule"],
+      "properties": {
+        "startTime": { "$ref": "#/$defs/hhmm", "description": "Inclusive start." },
+        "endTime": { "$ref": "#/$defs/hhmm", "description": "Exclusive end. Equal to startTime = whole day; earlier than startTime = crosses midnight." },
+        "schedule": {
+          "type": "array",
+          "description": "Days this window applies to. Empty = every day.",
+          "items": { "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "required": ["websites", "apps"],
+      "properties": {
+        "websites": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Bare domains, e.g. \"twitter.com\". Clients match subdomains too."
+        },
+        "apps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "App names as reported by the OS, e.g. \"Discord\"."
+        }
+      }
+    },
+    "hhmm": {
+      "type": "string",
+      "pattern": "^([01]?\\d|2[0-3]):[0-5]\\d$"
+    }
+  }
+}

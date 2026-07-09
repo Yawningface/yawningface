@@ -1,0 +1,25 @@
+# Secrets — never commit. The coach reads OPENCODE_API_KEY from .env locally.
+.env
+.env.*
+!.env.example
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Next.js (apps/cloud)
+.next/
+.vercel/
+
+# Rust (apps/desktop)
+target/
+
+# Xcode (apps/iphone)
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# OS noise
+.DS_Store
+Thumbs.db

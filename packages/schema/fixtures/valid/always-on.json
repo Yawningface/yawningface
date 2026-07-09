@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "blocklists": [
+    {
+      "id": "hard-limits",
+      "name": "Hard Limits",
+      "metadata": {
+        "enabled": true,
+        "severity": "block",
+        "devices": ["desktop", "mobile", "tablet"]
+      },
+      "targets": {
+        "websites": ["example-gambling-site.com"],
+        "apps": []
+      },
+      "exceptions": []
+    }
+  ]
+}

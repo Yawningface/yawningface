@@ -1,0 +1,56 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows-latest, args: '' }
+          - { platform: macos-latest, args: '--target aarch64-apple-darwin' }
+    runs-on: ${{ matrix.platform }}
+    env:
+      # Baked-in defaults for the published builds. Set these as repository
+      # *variables* (they are public identifiers, not secrets). Users can
+      # always override them in the app's Settings screen.
+      YF_API_BASE: ${{ vars.YF_API_BASE }}
+      YF_AUTH0_DOMAIN: ${{ vars.YF_AUTH0_DOMAIN }}
+      YF_AUTH0_CLIENT_ID: ${{ vars.YF_AUTH0_CLIENT_ID }}
+      YF_AUTH0_AUDIENCE: ${{ vars.YF_AUTH0_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'YawningFace Block v__VERSION__'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

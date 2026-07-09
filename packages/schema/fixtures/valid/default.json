@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "blocklists": [
+    {
+      "id": "morning-focus",
+      "name": "Morning Focus",
+      "metadata": {
+        "enabled": false,
+        "severity": "block",
+        "devices": ["desktop", "mobile", "tablet"],
+        "timePeriods": [
+          {
+            "startTime": "09:00",
+            "endTime": "13:00",
+            "schedule": ["mon", "tue", "wed", "thu", "fri"]
+          }
+        ]
+      },
+      "targets": {
+        "websites": ["twitter.com", "youtube.com", "instagram.com"],
+        "apps": []
+      },
+      "exceptions": []
+    }
+  ]
+}

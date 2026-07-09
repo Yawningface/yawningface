@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "blocklists": [
+    {
+      "id": "broken-times",
+      "name": "Broken times",
+      "metadata": {
+        "enabled": true,
+        "severity": "block",
+        "devices": ["desktop"],
+        "timePeriods": [
+          { "startTime": "25:00", "endTime": "9pm", "schedule": ["mon"] }
+        ]
+      },
+      "targets": { "websites": ["twitter.com"], "apps": [] },
+      "exceptions": []
+    }
+  ]
+}

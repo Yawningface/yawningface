@@ -1,0 +1,21 @@
+{
+  "name": "@yawningface/cli",
+  "version": "0.1.0",
+  "description": "yf — talk to your blocker. Validate, inspect, and (opt-in) coach your YawningFace config.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "yf": "dist/index.js",
+    "yawningface": "dist/index.js"
+  },
+  "dependencies": {
+    "@yawningface/schema": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/cli.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
