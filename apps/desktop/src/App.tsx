@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -41,7 +41,7 @@ export default function App() {
           <span className="brand-dot" /> YawningFace <b>Block</b>
         </div>
         <button
-          className="ghost"
+          className={view === "home" ? "ghost gear" : "ghost small"}
           onClick={() => setView(view === "home" ? "settings" : "home")}
         >
           {view === "home" ? "⚙" : "← Back"}
@@ -93,15 +93,9 @@ function SessionCard({
 
   if (status.sessionActive) {
     return (
-      <section className="session-card on">
-        <div className="session-state">WORKING SESSION</div>
-        <div className="session-detail">
-          Blocking {status.blockedDomains} sites
-          {status.sessionUntil
-            ? ` until ${new Date(status.sessionUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-            : " until you stop"}
-        </div>
-        <button className="ghost small" disabled={busy} onClick={stop}>
+      <section className="session-card">
+        <div className="session-title">Working session</div>
+        <button className="ghost pill" disabled={busy} onClick={stop}>
           End session
         </button>
       </section>
@@ -110,7 +104,7 @@ function SessionCard({
 
   return (
     <section className="session-card">
-      <div className="session-state off">Ready to focus?</div>
+      <div className="session-title">Ready to focus?</div>
       <div className="chips">
         {DURATIONS.map((d) => (
           <button
@@ -125,11 +119,44 @@ function SessionCard({
       <button className="primary big" disabled={busy} onClick={start}>
         {busy ? "Starting…" : "Start working session"}
       </button>
-      <p className="muted small-text">
-        Blocks LinkedIn, X, Instagram, TikTok, YouTube, Reddit, Facebook, Twitch
-        — in every browser. No account needed.
+      <p className="small-text">
+        Feeds off in every browser — X, Instagram, TikTok, YouTube, Reddit and
+        friends. No account needed.
       </p>
     </section>
+  );
+}
+
+function Hero({ status }: { status: EngineStatus }) {
+  const blocking = status.sessionActive || status.blockedDomains > 0;
+  const schedules = status.activeLists.filter((l) => l !== "Working session");
+
+  let line: ReactNode = "Nothing blocked right now.";
+  if (status.sessionActive) {
+    line = (
+      <>
+        Blocking <b>{status.blockedDomains}</b> sites
+        {status.sessionUntil
+          ? ` until ${new Date(status.sessionUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : " until you stop"}
+      </>
+    );
+  } else if (blocking && schedules.length > 0) {
+    line = (
+      <>
+        <b>{schedules.join(", ")}</b> is on · {status.blockedDomains} sites
+        blocked
+      </>
+    );
+  }
+
+  return (
+    <div className="hero">
+      <div className="hero-emoji" key={blocking ? "on" : "off"}>
+        {blocking ? "😎" : "😴"}
+      </div>
+      <p className="hero-line">{line}</p>
+    </div>
   );
 }
 
@@ -179,14 +206,20 @@ function HomeView({
 
   return (
     <main className="panel">
+      <Hero status={status} />
+
       {!status.hostsHelperInstalled && (
         <section className="card warn">
           <b>One-time setup</b>
           <p className="muted">
-            Approve with your password once, so websites can be blocked
-            system-wide. Silent forever after.
+            Approve once with your password. From then on, blocking works
+            system-wide, silently.
           </p>
-          <button className="primary" disabled={helperBusy} onClick={installHelper}>
+          <button
+            className="cta-dark"
+            disabled={helperBusy}
+            onClick={installHelper}
+          >
             {helperBusy ? "Installing…" : "Enable website blocking"}
           </button>
           {helperError && <p className="error">{helperError}</p>}
@@ -221,12 +254,12 @@ function HomeView({
             Sign out
           </button>
         </section>
-      ) : (
+      ) : status.configured ? (
         <section className="card">
           <b>Sync across devices</b>
           <p className="muted">
-            Optional: connect your account to share one schedule between this
-            computer, your phone and your friends' leaderboard.
+            Optional: one schedule shared between this computer, your phone and
+            your friends' leaderboard.
           </p>
           {login ? (
             <>
@@ -234,21 +267,21 @@ function HomeView({
               <p className="muted">Confirm the code in your browser…</p>
             </>
           ) : (
-            <button
-              className="ghost"
-              disabled={!status.configured || loginBusy}
-              onClick={connect}
-            >
+            <button className="ghost" disabled={loginBusy} onClick={connect}>
               {loginBusy ? "Waiting…" : "Connect account"}
             </button>
           )}
-          {!status.configured && (
-            <p className="muted small-text">
-              (Server not configured in this build yet — offline sessions work
-              regardless.)
-            </p>
-          )}
           {loginError && <p className="error">{loginError}</p>}
+        </section>
+      ) : (
+        <section className="card">
+          <div className="row">
+            <b>Sync across devices</b>
+            <span className="small-text">coming soon</span>
+          </div>
+          <p className="muted small-text">
+            Offline sessions work forever, no account, no server.
+          </p>
         </section>
       )}
 
