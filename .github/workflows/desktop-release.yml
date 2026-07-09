@@ -1,0 +1,82 @@
+name: desktop-release
+
+# Builds the YawningFace desktop app (apps/desktop, Tauri 2) for Windows and
+# macOS (Apple Silicon). Two modes:
+#   - push a tag `desktop-v*`  -> builds + creates a DRAFT GitHub Release with installers
+#   - manual workflow_dispatch -> builds only, installers land as workflow artifacts
+# System adapted from turbo-screenshot's proven release pipeline.
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows-latest, args: '' }
+          - { platform: macos-latest, args: '--target aarch64-apple-darwin' }
+    runs-on: ${{ matrix.platform }}
+    env:
+      # Baked-in defaults for published builds. Repository *variables*, not
+      # secrets (they are public identifiers). Users can override in-app.
+      YF_API_BASE: ${{ vars.YF_API_BASE }}
+      YF_AUTH0_DOMAIN: ${{ vars.YF_AUTH0_DOMAIN }}
+      YF_AUTH0_CLIENT_ID: ${{ vars.YF_AUTH0_CLIENT_ID }}
+      YF_AUTH0_AUDIENCE: ${{ vars.YF_AUTH0_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './apps/desktop/src-tauri -> target'
+          # Share one stable cache slot with desktop-cache-warm.yml (which runs
+          # on main and owns writing it). Tag runs can only RESTORE the
+          # default-branch cache, so they must not save a tag-scoped copy.
+          shared-key: 'desktop-release'
+          save-if: 'false'
+
+      - name: Install frontend deps
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Rust tests (schedule engine, hosts blocking)
+        working-directory: apps/desktop/src-tauri
+        run: cargo test
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          # Empty tagName on manual runs = build only, no release created.
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: 'YawningFace Desktop v__VERSION__'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Upload build artifacts (manual runs only)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: yawningface-desktop-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz

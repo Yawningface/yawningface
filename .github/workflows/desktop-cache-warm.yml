@@ -1,0 +1,49 @@
+name: desktop-cache-warm
+
+# Populates the Rust build cache on the DEFAULT branch (main) so tag-triggered
+# desktop-release builds can RESTORE it. GitHub Actions caches are
+# branch/tag-scoped: a tag run can only read caches created on its own ref or
+# on the default branch — and desktop-release runs on tags, so without a
+# main-scoped cache every release recompiles ~400 crates cold (~15 min).
+#
+# Runs only when Rust dependencies actually change, plus a weekly heartbeat so
+# the cache survives GitHub's 7-day eviction. Windows only (macOS runner
+# minutes cost 10x on private repos; the mac release leg builds cold for now).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/src-tauri/Cargo.lock'
+      - 'apps/desktop/src-tauri/Cargo.toml'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  warm:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './apps/desktop/src-tauri -> target'
+          # Same stable slot desktop-release.yml restores. This job runs only
+          # on main, so it owns writing the shared cache (save-if defaults true).
+          shared-key: 'desktop-release'
+
+      - name: Install frontend deps
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Warm the build cache (same compile as a release, no publish)
+        working-directory: apps/desktop
+        run: npx tauri build
