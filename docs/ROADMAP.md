@@ -6,8 +6,8 @@
   final bundle IDs (app + monitor extension). It's a per-bundle-ID request
   form with weeks of lead time — the longest pole in the whole project.
   See [.claude/skills/ios-screentime](../.claude/skills/ios-screentime/SKILL.md).
-- [ ] Top up / verify the model endpoint for the coach (`yf coach` is ready;
-  the endpoint just needs balance).
+- [x] Coach endpoint: defaults now point at OpenRouter's free tier — a $0
+  key runs `yf coach` end-to-end (verified live on the 550B free model).
 
 ## Phase 0 — the founding commit ✅
 

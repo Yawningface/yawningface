@@ -17,7 +17,8 @@ Usage
 
 Config resolution: --file, else $YF_CONFIG, else ./yawningface.json
 Templates: stress-free-mornings | freedom-afternoons | better-sleep-nights | social-detox
-Coach env: OPENCODE_API_KEY (required), OPENCODE_BASE_URL, OPENCODE_MODEL — see .env.example
+Coach env: YF_COACH_API_KEY (required — a free openrouter.ai key is enough),
+           YF_COACH_BASE_URL, YF_COACH_MODEL — see .env.example
 
 The coach is optional by design. The config is a JSON file you own; every
 command works without any AI or any account.`;

@@ -16,6 +16,7 @@ function run(args, options = {}) {
     env: {
       ...process.env,
       YF_DISABLE_DOTENV: "1",
+      YF_COACH_API_KEY: "",
       OPENCODE_API_KEY: "",
       YF_CONFIG: "",
       ...options.env,
@@ -95,7 +96,7 @@ test("show renders blocklists and the right-now evaluation", () => {
 test("coach without a key exits 2 and explains the opt-in", () => {
   const { code, stderr } = run(["coach", "--once", "hello"]);
   assert.equal(code, 2);
-  assert.match(stderr, /OPENCODE_API_KEY/);
+  assert.match(stderr, /YF_COACH_API_KEY/);
   assert.match(stderr, /opt-in/);
 });
 

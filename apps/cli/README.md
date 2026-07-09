@@ -30,13 +30,17 @@ that solves it, the user is sovereign.** Every proposal is validated against
 the [contract](../../packages/schema/README.md), shown as a diff, and applied
 only after you confirm.
 
-It needs a key for any OpenAI-compatible endpoint:
+It needs a key for any OpenAI-compatible endpoint — and the default model is
+**free**: a $0 key from [openrouter.ai](https://openrouter.ai/) is enough.
 
 ```
-OPENCODE_API_KEY=...                            # required (env or .env)
-OPENCODE_BASE_URL=https://opencode.ai/zen/v1    # default
-OPENCODE_MODEL=claude-sonnet-5                  # default
+YF_COACH_API_KEY=...                                     # required (env or .env)
+YF_COACH_BASE_URL=https://openrouter.ai/api/v1           # default
+YF_COACH_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free    # default ($0)
 ```
+
+Free models get congested at peak times; the client retries 429s politely,
+and `YF_COACH_MODEL` switches models without touching code.
 
 No key, no AI, no problem: `yf init` + editing the JSON by hand covers
 everything, offline, forever. One-shot mode for scripts and agents:
