@@ -1,4 +1,4 @@
-/* YawningFace design language — docs/STYLE_GUIDE.md is the law here.
+/* YawningFace design language — docs/STYLE_GUIDE.md, Apple-grade execution.
    Calm, dark, one yellow accent, one emoji doing the emotional work. */
 
 * {
@@ -9,8 +9,8 @@
 
 :root {
   --bg: #111926;
-  --card: #1f2937;
-  --card-2: #2a3648; /* inputs, chips — one step above card */
+  --card: #1c2534;
+  --card-2: #2a3648;
   /* solid grays (not alpha whites): deterministic on any surface */
   --text: #ffffff;
   --text-70: #bac1cc;
@@ -18,9 +18,11 @@
   --text-50: #8d97a6;
   --text-30: #5c6575;
   --accent: #facc16;
-  --danger: rgba(248, 113, 113, 0.9);
-  --radius-card: 12px;
+  --danger: #f08a8a;
+  --hairline: rgba(255, 255, 255, 0.055);
+  --radius-card: 14px;
   --radius-pill: 25px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 html,
@@ -30,12 +32,21 @@ body,
 }
 
 body {
-  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-  background: var(--bg);
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system,
+    "SF Pro Text", system-ui, sans-serif;
+  /* ambient light from above — not a flat void */
+  background: radial-gradient(
+      120% 55% at 50% -18%,
+      #1a2434 0%,
+      var(--bg) 60%
+    )
+    var(--bg);
   color: var(--text);
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::-webkit-scrollbar {
@@ -61,17 +72,18 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px 8px;
+  padding: 14px 20px 6px;
 }
 
 .brand {
   font-size: 13px;
-  color: var(--text-70);
-  letter-spacing: 0.2px;
+  color: var(--text-60);
+  letter-spacing: 0.1px;
 }
 
 .brand b {
-  color: var(--text);
+  color: var(--text-70);
+  font-weight: 600;
 }
 
 .brand-dot {
@@ -80,13 +92,13 @@ body {
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  margin-right: 7px;
+  margin-right: 8px;
   vertical-align: 1px;
 }
 
 .panel {
   flex: 1;
-  padding: 8px 18px 18px;
+  padding: 6px 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -101,24 +113,25 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 10px 0;
-  min-height: 118px;
+  gap: 12px;
+  padding: 8px 0;
+  min-height: 122px;
 }
 
 .hero-emoji {
-  font-size: 72px;
+  font-size: 74px;
   line-height: 1.15;
-  animation: hero-pop 200ms ease-out;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
+  animation: hero-pop 260ms var(--ease);
 }
 
 @keyframes hero-pop {
   from {
-    transform: scale(0.85);
-    opacity: 0.4;
+    transform: scale(0.88) translateY(4px);
+    opacity: 0.3;
   }
   to {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
     opacity: 1;
   }
 }
@@ -137,19 +150,20 @@ body {
 /* ---- typography ---- */
 
 h2 {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
 b {
   color: inherit;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .muted {
   color: var(--text-60);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .error {
@@ -160,45 +174,53 @@ b {
 .small-text {
   font-size: 12px;
   color: var(--text-50);
+  line-height: 1.45;
 }
 
-/* ---- cards: flat, calm, borderless ---- */
+/* ---- cards: elevated material with a hairline, not flat web boxes ---- */
 
 .card {
   background: var(--card);
   border-radius: var(--radius-card);
-  padding: 12px 14px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 7px;
+  box-shadow:
+    inset 0 0 0 1px var(--hairline),
+    0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .card b {
   font-size: 14px;
 }
 
-/* The one-time permission ask is the only loud thing on the screen:
-   full yawn-yellow, black text — the iPhone banner, corrected. */
+/* The one-time permission ask is the only loud thing on the screen. */
 .card.warn {
-  background: var(--accent);
-  color: #000;
+  background: linear-gradient(180deg, #ffd83d, #f3c50e);
+  color: #14181f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 8px 24px rgba(243, 197, 14, 0.12);
 }
 
 .card.warn b {
-  color: #000;
+  color: #14181f;
+  font-size: 15px;
 }
 
 .card.warn .muted {
-  color: rgba(0, 0, 0, 0.72);
+  color: rgba(20, 24, 31, 0.72);
 }
 
 .cta-dark {
-  background: #111926;
+  background: #151c28;
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
   border-radius: 20px;
-  padding: 10px 20px;
-  align-self: flex-start;
+  padding: 11px 20px;
+  width: 100%;
+  margin-top: 3px;
 }
 
 .row {
@@ -213,19 +235,23 @@ b {
   font-size: 13px;
 }
 
-/* ---- buttons: white pill is the hero action, yellow is the small CTA ---- */
+/* ---- buttons ---- */
 
 button {
   font: inherit;
   border: none;
-  border-radius: 8px;
+  border-radius: 9px;
   padding: 10px 16px;
-  cursor: pointer;
-  transition: transform 150ms ease-out, opacity 150ms ease-out;
+  cursor: default;
+  transition:
+    transform 180ms var(--ease),
+    opacity 180ms var(--ease),
+    background-color 180ms var(--ease),
+    color 180ms var(--ease);
 }
 
 button:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: scale(0.97);
 }
 
 button:focus-visible {
@@ -234,31 +260,25 @@ button:focus-visible {
 }
 
 button:disabled {
-  opacity: 0.5;
-  cursor: default;
+  opacity: 0.45;
 }
 
 .primary {
   background: var(--text);
   color: #000;
-  font-weight: 700;
+  font-weight: 600;
   border-radius: var(--radius-pill);
   min-height: 50px;
   padding: 12px 24px;
 }
 
+.primary:hover:not(:disabled) {
+  background: #eceef2;
+}
+
 .primary.big {
   width: 100%;
   font-size: 15px;
-}
-
-.cta {
-  background: var(--accent);
-  color: #000;
-  font-weight: 700;
-  border-radius: 20px;
-  padding: 10px 20px;
-  align-self: flex-start;
 }
 
 .ghost {
@@ -272,26 +292,28 @@ button:disabled {
 }
 
 .ghost.pill {
-  background: var(--card-2);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 999px;
-  padding: 9px 20px;
+  padding: 9px 22px;
   font-size: 13px;
   color: var(--text-70);
 }
 
 .ghost.pill:hover {
+  background: rgba(255, 255, 255, 0.11);
   color: var(--text);
 }
 
 .gear {
-  font-size: 17px;
-  line-height: 1;
   color: var(--text-50);
-  padding: 6px 8px;
+  padding: 6px;
+  display: inline-flex;
+  border-radius: 8px;
 }
 
 .gear:hover {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .small {
@@ -308,45 +330,67 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   text-align: center;
+  box-shadow:
+    inset 0 0 0 1px var(--hairline),
+    0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .session-title {
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
-.session-detail {
-  color: var(--text-70);
-  font-size: 13px;
-}
+/* ---- segmented duration picker (the iOS control, in brand yellow) ---- */
 
-.chips {
+.segmented {
+  position: relative;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-.chip {
-  background: var(--card-2);
-  color: var(--text-60);
-  border-radius: 999px;
-  padding: 7px 14px;
-  font-size: 13px;
-}
-
-.chip.selected {
+.segmented-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 4);
   background: var(--accent);
+  border-radius: 8px;
+  transition: transform 220ms var(--ease);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.segmented-option {
+  position: relative;
+  flex: 1;
+  background: transparent;
+  color: var(--text-60);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 2px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.segmented-option.selected {
   color: #000;
-  font-weight: 700;
+}
+
+.segmented-option:active:not(:disabled) {
+  transform: none;
 }
 
 /* ---- device-code display ---- */
 
 .code {
-  font-family: ui-monospace, "SF Mono", "Cascadia Mono", monospace;
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", monospace;
   font-size: 24px;
   letter-spacing: 4px;
   background: var(--card-2);
@@ -354,6 +398,12 @@ button:disabled {
   padding: 12px 18px;
   color: var(--accent);
   text-align: center;
+}
+
+.code.small-code {
+  font-size: 20px;
+  letter-spacing: 3px;
+  padding: 10px 16px;
 }
 
 /* ---- forms (settings) ---- */
@@ -369,7 +419,7 @@ label {
 label.checkbox {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   color: var(--text);
   font-size: 14px;
 }
@@ -383,13 +433,13 @@ input[type="checkbox"] {
 input[type="text"],
 input:not([type]) {
   font: inherit;
-  background: var(--card);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
   padding: 10px 12px;
   color: var(--text);
   outline: none;
-  transition: border-color 150ms ease-out;
+  transition: border-color 180ms var(--ease);
 }
 
 input:focus {
@@ -403,7 +453,7 @@ input:focus {
 }
 
 details summary {
-  cursor: pointer;
+  cursor: default;
   font-size: 13px;
   color: var(--text-50);
   margin: 6px 0;
@@ -420,7 +470,7 @@ details summary {
 
 .hint {
   text-align: center;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-30);
   margin-top: 2px;
 }
