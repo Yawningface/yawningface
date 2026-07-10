@@ -15,6 +15,24 @@ use super::hosts::spool_path;
 #[cfg(target_os = "macos")]
 pub const MAC_DAEMON_LABEL: &str = "org.yawningface.block.hostsd";
 
+/// Absolute paths for System32 tools. Privileged plumbing must never depend
+/// on PATH: a stripped or broken PATH otherwise turns setup into a cryptic
+/// "program not found" — and the elevated child inherits that same PATH.
+#[cfg(target_os = "windows")]
+fn windir() -> String {
+    std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into())
+}
+
+#[cfg(target_os = "windows")]
+fn powershell_exe() -> String {
+    format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", windir())
+}
+
+#[cfg(target_os = "windows")]
+fn schtasks_exe() -> String {
+    format!(r"{}\System32\schtasks.exe", windir())
+}
+
 pub fn helper_installed() -> bool {
     #[cfg(target_os = "macos")]
     {
@@ -22,7 +40,7 @@ pub fn helper_installed() -> bool {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("schtasks")
+        std::process::Command::new(schtasks_exe())
             .args(["/Query", "/TN", "YawningFaceBlockHosts"])
             .output()
             .map(|o| o.status.success())
@@ -203,7 +221,7 @@ foreach ($line in $existing) {
 $new = $kept + $section
 if (($existing -join "`n") -ne ($new -join "`n")) {
   Set-Content -Path $hostsPath -Value $new -Encoding ascii
-  ipconfig /flushdns | Out-Null
+  & (Join-Path $env:WINDIR 'System32\ipconfig.exe') /flushdns | Out-Null
 }
 "#;
 
@@ -214,13 +232,33 @@ if (($existing -join "`n") -ne ($new -join "`n")) {
 
     // Setup script (runs elevated): copy applier into ProgramData (admin-owned)
     // and register the SYSTEM task.
+    // ScheduledTasks module instead of schtasks.exe /TR: executable and
+    // arguments stay separate parameters, so there is no quoting hell (the
+    // old schtasks path failed exactly there). Absolute tool paths
+    // throughout: the elevated child inherits this process's PATH, which may
+    // not include System32. A transcript lands next to the applier so a
+    // failed setup is never invisible again.
     let setup = format!(
-        r#"$dir = 'C:\ProgramData\YawningFaceBlock'
+        r#"$ErrorActionPreference = 'Stop'
+$dir = 'C:\ProgramData\YawningFaceBlock'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-Copy-Item -Force '{applier}' (Join-Path $dir 'apply-hosts.ps1')
-$action = 'powershell -NoProfile -ExecutionPolicy Bypass -File "C:\ProgramData\YawningFaceBlock\apply-hosts.ps1" "{spool}"'
-schtasks /Create /F /TN 'YawningFaceBlockHosts' /SC MINUTE /MO 1 /RL HIGHEST /RU SYSTEM /TR $action | Out-Null
-schtasks /Run /TN 'YawningFaceBlockHosts' | Out-Null
+Start-Transcript -Path (Join-Path $dir 'setup.log') -Force | Out-Null
+try {{
+  $ps = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  Copy-Item -Force '{applier}' (Join-Path $dir 'apply-hosts.ps1')
+
+  $action = New-ScheduledTaskAction -Execute $ps -Argument ('-NoProfile -ExecutionPolicy Bypass -File "{{0}}" "{{1}}"' -f (Join-Path $dir 'apply-hosts.ps1'), '{spool}')
+  $minutely = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
+  $atBoot = New-ScheduledTaskTrigger -AtStartup
+  $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+  # A blocker that pauses on battery would be a broken product.
+  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
+  Register-ScheduledTask -Force -TaskName 'YawningFaceBlockHosts' -Action $action -Trigger @($minutely, $atBoot) -Principal $principal -Settings $settings | Out-Null
+  Start-ScheduledTask -TaskName 'YawningFaceBlockHosts'
+}}
+finally {{
+  Stop-Transcript | Out-Null
+}}
 "#,
         applier = tmp_applier.to_string_lossy(),
         spool = spool_str
@@ -228,21 +266,25 @@ schtasks /Run /TN 'YawningFaceBlockHosts' | Out-Null
     let tmp_setup = tmp.join("setup.ps1");
     std::fs::write(&tmp_setup, setup).map_err(|e| e.to_string())?;
 
-    // Elevate: Start-Process -Verb RunAs triggers the UAC prompt.
+    // Elevate: Start-Process -Verb RunAs triggers the UAC prompt. A declined
+    // prompt throws Win32 error 1223 (ERROR_CANCELLED) — detect it by code,
+    // not by message text, so it works on every Windows language.
     let elevate = format!(
-        "Start-Process -FilePath 'powershell' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}'",
+        "try {{ Start-Process -FilePath '{}' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}' }} catch {{ $native = $_.Exception.InnerException; if ($native -and $native.NativeErrorCode -eq 1223) {{ Write-Error 'YF_UAC_CANCELLED' }} else {{ Write-Error ('YF_ELEVATE_FAIL: ' + $_.Exception.Message) }}; exit 1 }}",
+        powershell_exe(),
         tmp_setup.to_string_lossy()
     );
-    let output = std::process::Command::new("powershell")
+    let output = std::process::Command::new(powershell_exe())
         .args(["-NoProfile", "-Command", &elevate])
         .output()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("could not launch PowerShell for setup: {e}"))?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        if err.contains("canceled") || err.contains("cancelled") {
-            return Err("Setup was cancelled at the UAC prompt.".into());
+        if err.contains("YF_UAC_CANCELLED") {
+            return Err("Setup was cancelled at the permission prompt — nothing was changed. Click again whenever you're ready.".into());
         }
-        return Err(format!("Helper install failed: {err}"));
+        let short: String = err.chars().take(200).collect();
+        return Err(format!("Helper install failed: {short}"));
     }
     if !helper_installed() {
         return Err("The scheduled task was not created. Please try again.".into());
@@ -255,7 +297,7 @@ schtasks /Run /TN 'YawningFaceBlockHosts' | Out-Null
 pub fn trigger_apply() {
     #[cfg(target_os = "windows")]
     {
-        let _ = std::process::Command::new("schtasks")
+        let _ = std::process::Command::new(schtasks_exe())
             .args(["/Run", "/TN", "YawningFaceBlockHosts"])
             .output();
     }

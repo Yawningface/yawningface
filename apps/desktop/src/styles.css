@@ -169,6 +169,8 @@ b {
 .error {
   color: var(--danger);
   font-size: 13px;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .small-text {
@@ -211,6 +213,10 @@ b {
 
 .card.warn .muted {
   color: rgba(20, 24, 31, 0.72);
+}
+
+.card.warn .error {
+  color: #7c2412; /* dark red — readable on yellow, unlike the pink default */
 }
 
 .cta-dark {
