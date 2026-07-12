@@ -46,12 +46,12 @@ export default function Home() {
       {/* Hero */}
       <section className="py-20 text-center sm:py-28">
         <h1 className="mx-auto max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
-          YawningFace Block — defend your attention on{" "}
+          YawningFace Block - defend your attention on{" "}
           <span className="text-accent">every device</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
           One blocklist, synced everywhere. Define what distracts you and when
-          it should be blocked — your laptop, browser, and phone all enforce
+          it should be blocked - your laptop, browser, and phone all enforce
           the same rules. Open source, self-hostable, and yours: your data
           lives in your own Supabase project.
         </p>
@@ -91,7 +91,7 @@ export default function Home() {
             the device where willpower goes to die.
           </Card>
           <Card title="Chrome extension" status="coming soon">
-            Lightweight enforcement right in the browser — same blocklists,
+            Lightweight enforcement right in the browser - same blocklists,
             same schedule, zero extra setup.
           </Card>
         </div>
@@ -105,7 +105,7 @@ export default function Home() {
           </h2>
           <p className="mt-3 max-w-2xl leading-relaxed text-muted">
             This hub is a small Next.js app you deploy to Vercel for free, with
-            Supabase for storage and Auth0 for sign-in — both on free tiers. No
+            Supabase for storage and Auth0 for sign-in - both on free tiers. No
             servers to babysit, no subscription, no one else holding your
             attention data.
           </p>

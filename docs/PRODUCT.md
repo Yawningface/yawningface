@@ -2,8 +2,8 @@
 
 VISION.md says why we exist and what we refuse to build. This doc says how we
 decide **what to build next**. It exists because the 2025 run died of
-unmanaged product — four side-projects born in one day, blocker dead four
-days later — not of bad engineering.
+unmanaged product - four side-projects born in one day, blocker dead four
+days later - not of bad engineering.
 
 ## The user (beachhead)
 
@@ -14,7 +14,7 @@ person first; "everyone who scrolls" is the mission, not the market entry.
 
 ## The problem, sharply
 
-Blockers die at the first legitimate exception — one bad moment costs the
+Blockers die at the first legitimate exception - one bad moment costs the
 whole war. **Sustainability is the product. Blocking is table stakes.**
 Every feature must answer: does this make the blocker survivable for months?
 
@@ -33,7 +33,7 @@ Re-rank when evidence lands; kill bets without ceremony.
 
 | # | Assumption at risk | Cheapest test | Status |
 | --- | --- | --- | --- |
-| 1 | *People will keep a bend-don't-break blocker installed* (retention) | Windows app, working sessions + helper, in 5–10 real users' hands for a month | *next — needs v0.2.1 published + repo public* |
+| 1 | *People will keep a bend-don't-break blocker installed* (retention) | Windows app, working sessions + helper, in 5–10 real users' hands for a month | *next - needs v0.2.1 published + repo public* |
 | 2 | *Anyone will find it* (distribution) | Repo public + build-in-public thread + one Show HN / r/nosurf post; watch first 100 installs | queued behind bet 1 |
 | 3 | *The coach measurably improves retention* (the differentiator) | Coach in the desktop app for the same cohort; compare uninstall/relax behaviour | after 1–2 |
 | 4 | *One brain, every device* is the winning wedge (sync) | iPhone contract adoption + extension rebuild, same cohort | after 1–2 |
@@ -51,16 +51,16 @@ What is deliberately **not** a bet: whether we can build it (proven, Jan
 5. Re-rank. Repeat.
 
 Weekly rhythm: something a user can *feel* ships every week, even if tiny.
-Cadence beats intensity — consistency is the one superpower this project has
+Cadence beats intensity - consistency is the one superpower this project has
 already proven it has (Jan 2025: 17 straight days built a product).
 
 ## Decision rules (the "no" machine)
 
-- Serves the north star? If not, it's decoration — park it.
+- Serves the north star? If not, it's decoration - park it.
 - Passes the [[product-principles]] gates (sustainability, smart friction,
   sovereignty, contract, taste)? If not, redesign or drop.
 - Is it the top bet's smallest test? If it's bet 4 work while bet 1 is
-  unproven, it waits — however fun it is.
+  unproven, it waits - however fun it is.
 - Distribution work counts as product work. Half of every week's shippable
   can be a screenshot thread, a README improvement, a store listing.
 

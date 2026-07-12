@@ -1,7 +1,7 @@
 {
   "name": "@yawningface/cli",
   "version": "0.1.0",
-  "description": "yf — talk to your blocker. Validate, inspect, and (opt-in) coach your YawningFace config.",
+  "description": "yf - talk to your blocker. Validate, inspect, and (opt-in) coach your YawningFace config.",
   "license": "MIT",
   "type": "module",
   "bin": {

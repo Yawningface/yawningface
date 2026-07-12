@@ -22,7 +22,7 @@ while everyone else used `targets:{websites,apps}` with `"mon"`).
    - `packages/schema/test/schema.test.mjs`
    - `packages/schema/README.md`
 3. **Keep the two validation tiers straight:** `validateConfig` (minimal)
-   must stay byte-compatible with the cloud's PUT check — it is deliberately
+   must stay byte-compatible with the cloud's PUT check - it is deliberately
    lenient. Strictness goes in `validateConfigStrict` (producers only).
 4. **Evaluation semantics are locked by Rust parity.** If you change
    `evaluateAt`, change `apps/desktop/src-tauri/src/schedule.rs` and BOTH

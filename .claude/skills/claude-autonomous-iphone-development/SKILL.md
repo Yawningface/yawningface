@@ -1,13 +1,13 @@
 ---
 name: claude-autonomous-iphone-development
-description: Use when setting up or running the remote iPhone development loop — building, launching, screenshotting, and iterating apps/iphone on the Tailscale Mac mini from the Windows machine (or autonomously on the mini itself), including serve-sim streaming and on-device testing.
+description: Use when setting up or running the remote iPhone development loop - building, launching, screenshotting, and iterating apps/iphone on the Tailscale Mac mini from the Windows machine (or autonomously on the mini itself), including serve-sim streaming and on-device testing.
 ---
 
 # Claude autonomous iPhone development
 
 The levelsio pattern (agent → SSH → headless Mac → `xcodebuild`/`simctl` →
 screenshots → vision → iterate), adapted to Xuban's hardware: **no MacinCloud
-rental — his own Mac mini is already on Tailscale** (it self-hosts
+rental - his own Mac mini is already on Tailscale** (it self-hosts
 boringtube-2), and this Windows machine is on the same tailnet. Total cost: $0.
 
 ```
@@ -24,7 +24,7 @@ edits Swift, reads shots  <--git------ repo clone, builds & runs the app
 
 **FamilyControls / ManagedSettings / DeviceActivity do NOT work in the
 Simulator.** The simulator loop covers UI, onboarding, sync, the coach screen
-— ~90% of remaining work — but shields only fire on a **physical iPhone**
+ -  ~90% of remaining work - but shields only fire on a **physical iPhone**
 (plug it into the mini, see "On-device", and [[ios-screentime]]). Keep the
 blocking engine behind a protocol with a simulator mock so the loop never
 stalls on it.
@@ -37,8 +37,8 @@ stalls on it.
 | macOS user on the mini | `<TODO>` |
 | SSH alias | `mini` (via ~/.ssh/config, below) |
 | Xcode version on mini | `<TODO: ssh mini "xcodebuild -version">` |
-| Scheme / bundle id | `<TODO: xcodebuild -list>` — expect scheme `YawningFace`, bundle id from build settings |
-| Chosen simulator | `<TODO: xcrun simctl list devices available>` — prefer a recent iPhone |
+| Scheme / bundle id | `<TODO: xcodebuild -list>` - expect scheme `YawningFace`, bundle id from build settings |
+| Chosen simulator | `<TODO: xcrun simctl list devices available>` - prefer a recent iPhone |
 
 ## One-time setup
 
@@ -60,7 +60,7 @@ Add-Content $env:USERPROFILE\.ssh\config "`nHost mini`n  HostName <mini-magicdns
 
 **Verify from Windows:** `ssh mini "sw_vers && xcodebuild -version && xcrun simctl list devices available | head"`
 
-## Loop A — Windows-driven (recommended start; every step versioned)
+## Loop A - Windows-driven (recommended start; every step versioned)
 
 Claude Code runs here with native file tools; the mini is the build farm.
 
@@ -89,25 +89,25 @@ Then judge the screenshot against `docs/STYLE_GUIDE.md` (bg `#111926`, card
 acceptance criteria; fix; repeat. Logs when something crashes:
 `ssh mini 'xcrun simctl spawn booted log show --last 2m --predicate "process == \"YawningFace\"" | tail -40'`
 
-## Loop B — autonomous on the mini (fast iteration / overnight)
+## Loop B - autonomous on the mini (fast iteration / overnight)
 
-Install Claude Code on the mini and run it there in `~/yawningface` — native
+Install Claude Code on the mini and run it there in `~/yawningface` - native
 Edit/Read tools, no git round-trip per cycle, sessions keep running when the
 Windows box sleeps. Xuban prompts it via Termius (phone) or `ssh mini` and
 watches through serve-sim. Commit/push at every green step so Loop A's clone
 never diverges. Use Loop B for grinding UI polish; Loop A for reviewed,
 structural changes.
 
-## serve-sim — feel the app from Windows
+## serve-sim - feel the app from Windows
 
 ```bash
 ssh mini 'cd ~ && (xcrun simctl boot "iPhone 16" 2>/dev/null); npx serve-sim'   # leave running
-# separate Windows terminal — tunnel, then browse http://localhost:3200
+# separate Windows terminal - tunnel, then browse http://localhost:3200
 ssh -L 3200:localhost:3200 mini
 ```
 60 FPS MJPEG stream + click/gesture control in the browser. Evan Bacon's repo
 (github.com/EvanBacon/serve-sim) also ships an **agent skill** (`skills/serve-sim`)
-that teaches agents to drive gestures/taps/typing — install it on whichever
+that teaches agents to drive gestures/taps/typing - install it on whichever
 machine runs the agent when interaction-testing is needed.
 
 ## On-device (the Screen Time 10%)
@@ -119,15 +119,15 @@ ssh mini 'xcrun devicectl device install app --device <udid> <path-to-.app>'
 ```
 Device builds need real signing (Xuban's Apple ID team in Xcode on the mini);
 distribution/TestFlight additionally needs the **Family Controls entitlement**
-— the request form is the project's longest lead-time item ([[ios-screentime]]).
+ -  the request form is the project's longest lead-time item ([[ios-screentime]]).
 
 ## Recommended early improvements
 
 1. **XcodeGen**: replace the checked-in `.xcodeproj` with a text-native
-   `project.yml` (levelsio's trick) — agent-editable, merge-friendly,
+   `project.yml` (levelsio's trick) - agent-editable, merge-friendly,
    regenerate with `xcodegen generate`. Do it before heavy UI iteration.
 2. First missions once the loop is live: the `selectedDays` bug, contract
-   adoption, onboarding polish — all in `apps/iphone/PORT_NOTES.md`.
+   adoption, onboarding polish - all in `apps/iphone/PORT_NOTES.md`.
 
 ## Gotchas
 
@@ -135,10 +135,10 @@ distribution/TestFlight additionally needs the **Family Controls entitlement**
   `/usr/bin` and work, but anything installed via Homebrew may need
   `/opt/homebrew/bin/` prefixed.
 - If `simctl` errors about developer dir: `sudo xcode-select -s /Applications/Xcode.app` on the mini.
-- Simulator device names drift with Xcode versions — always discover with
+- Simulator device names drift with Xcode versions - always discover with
   `xcrun simctl list devices available` instead of assuming.
 - First boot of a simulator is slow (~1 min); keep it booted between cycles.
-- `git pull --ff-only` on the mini fails if Loop B committed without pushing —
+- `git pull --ff-only` on the mini fails if Loop B committed without pushing  - 
   resolve on the mini, never force-push from Windows.
 - Keep secrets off the mini clone; it needs no `.env` (the coach runs where
   Claude runs, not in the iPhone app).

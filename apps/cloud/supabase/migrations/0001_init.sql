@@ -1,4 +1,4 @@
--- YawningFace Block — cloud schema v1
+-- YawningFace Block - cloud schema v1
 --
 -- Run this in the Supabase SQL editor (or via the Supabase CLI).
 -- It is safe to run more than once.

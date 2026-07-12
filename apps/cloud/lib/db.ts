@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * Server-side Supabase client using the SERVICE-ROLE key.
  *
- * This client bypasses Row Level Security entirely — it must only ever be
+ * This client bypasses Row Level Security entirely - it must only ever be
  * imported from server code (route handlers). Never expose it to the browser.
  *
  * Created lazily so `next build` does not require env vars to be present.

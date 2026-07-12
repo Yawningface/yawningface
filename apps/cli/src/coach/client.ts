@@ -24,7 +24,7 @@ export function endpointFromEnv(): CoachEndpoint | string {
     return [
       "the coach is opt-in and needs a model API key.",
       "  Set YF_COACH_API_KEY in your environment or in a .env file.",
-      "  Any OpenAI-compatible endpoint works — and the default model is",
+      "  Any OpenAI-compatible endpoint works - and the default model is",
       "  free: a $0 key from openrouter.ai is enough (see .env.example).",
       '  Prefer no AI at all? "yf init" and editing the JSON work fully offline.',
     ].join("\n");
@@ -82,7 +82,7 @@ export async function chatComplete(
       });
     } catch (error) {
       throw new Error(
-        `could not reach ${endpoint.baseUrl} — are you offline? (${(error as Error).message})`,
+        `could not reach ${endpoint.baseUrl} - are you offline? (${(error as Error).message})`,
       );
     } finally {
       clearTimeout(timeout);
@@ -91,7 +91,7 @@ export async function chatComplete(
     if (response.status === 429 && attempt < maxAttempts) {
       const retryAfter = Number(response.headers.get("retry-after"));
       const waitMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 5000, 20_000);
-      console.error(`  (model is busy — retrying in ${Math.round(waitMs / 1000)}s, attempt ${attempt + 1}/${maxAttempts})`);
+      console.error(`  (model is busy - retrying in ${Math.round(waitMs / 1000)}s, attempt ${attempt + 1}/${maxAttempts})`);
       await response.text().catch(() => "");
       await sleep(waitMs);
       continue;
@@ -104,7 +104,7 @@ export async function chatComplete(
       }
       if (response.status === 429) {
         throw new Error(
-          `the model stayed rate-limited after ${maxAttempts} attempts: ${detail}\n  (free models get congested — try again in a minute, or set YF_COACH_MODEL to another one)`,
+          `the model stayed rate-limited after ${maxAttempts} attempts: ${detail}\n  (free models get congested - try again in a minute, or set YF_COACH_MODEL to another one)`,
         );
       }
       throw new Error(`endpoint returned HTTP ${response.status}: ${detail}`);

@@ -1,7 +1,7 @@
 # Style Guide
 
 Extracted from the iPhone app that cracked Screen Time blocking (the
-`blocker_last_push` "OLD GOOD UI", January 2026) — now the design language for
+`blocker_last_push` "OLD GOOD UI", January 2026) - now the design language for
 **every** surface: iPhone, desktop tray, extension, web, CLI output. Taste is
 99% of this product; when in doubt, this document wins.
 
@@ -18,16 +18,16 @@ One accent color, generous emptiness, one emoji doing the emotional work.
 | --- | --- | --- |
 | `bg` | `#111926` | app background (deep navy, almost black) |
 | `card` | `#1F2937` | cards, secondary buttons, inactive elements |
-| `accent` | `#FACC16` | **yawn yellow** — icons, active tab, links, highlights |
+| `accent` | `#FACC16` | **yawn yellow** - icons, active tab, links, highlights |
 | `text` | `#FFFFFF` | primary text |
-| `text-70` / `text-60` / `text-50` / `text-30` | white @ 70/60/50/30% | secondary text ladder — pick the lowest level that still reads |
+| `text-70` / `text-60` / `text-50` / `text-30` | white @ 70/60/50/30% | secondary text ladder - pick the lowest level that still reads |
 | `danger` | red @ 80% | destructive/give-up actions only |
 
-Dark is the *only* theme for now — the product's home is the evening. A light
+Dark is the *only* theme for now - the product's home is the evening. A light
 theme is a future decision, not a default.
 
 **Contrast rule:** text on `accent` yellow is always **black**, never white.
-(The old permission banner used yellow-on-white chips — that was a bug, not a
+(The old permission banner used yellow-on-white chips - that was a bug, not a
 pattern.)
 
 ### Type
@@ -51,11 +51,11 @@ System font, always (SF on Apple, Segoe on Windows, system-ui on web).
 | Accent CTA (small) | yellow pill, radius 20, black text, padding 12×24 |
 | Card | `card` bg, radius 10–12, padding 16 |
 | List/secondary button | `card` bg, radius 8, min-height 44 |
-| Screen padding | 16–20 horizontal; content breathes — one idea per screen |
+| Screen padding | 16–20 horizontal; content breathes - one idea per screen |
 
 ### Motion
 
-Press feedback: scale to **0.95**, ease-out, **150ms** — on everything
+Press feedback: scale to **0.95**, ease-out, **150ms** - on everything
 tappable. Page transitions: plain ease-in-out. Nothing bounces, nothing
 parallaxes. Calm.
 
@@ -63,8 +63,8 @@ parallaxes. Calm.
 
 State lives in one big emoji, center screen:
 
-- 😴 idle — nothing blocked, the world is boring, as it should be
-- 😎 blocking active — you're protected and a little cool about it
+- 😴 idle - nothing blocked, the world is boring, as it should be
+- 😎 blocking active - you're protected and a little cool about it
 
 Empty states get a 60pt emoji + headline + one `text-60` sentence + at most
 one yellow CTA. No illustrations, no mascots, no confetti.
@@ -86,7 +86,7 @@ with badges.
 The bypass flow ("Moment of Weakness") is honest drama, not punishment:
 progress dots turn red, taps and waits escalate (10 taps → 10s → 20 → 10s →
 30 → 10s), and the final button says "If you insist… Give Up". The user can
-*always* leave the flow — and *always* finish it. That duality **is** smart
+*always* leave the flow - and *always* finish it. That duality **is** smart
 friction; keep it in every port.
 
 ## CLI voice

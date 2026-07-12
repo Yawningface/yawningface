@@ -1,5 +1,5 @@
 /**
- * Canonical blocklist config schema — the cross-device contract.
+ * Canonical blocklist config schema - the cross-device contract.
  *
  * Every client (desktop, extension, iPhone) reads and writes this exact shape
  * via GET/PUT /api/v1/config. See docs/schema.md for the full specification.

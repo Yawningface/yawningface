@@ -44,7 +44,7 @@ If you change anything here, read [Evolving the contract](#evolving-the-contract
 - `startTime` is inclusive, `endTime` exclusive. `startTime === endTime`
   means the whole day. An end before the start crosses midnight
   (`22:00 → 07:00` blocks late evening and early morning on each scheduled day).
-- Malformed times **fail closed towards blocking** — a broken document should
+- Malformed times **fail closed towards blocking** - a broken document should
   never silently unblock anything.
 - Websites are bare domains; clients match subdomains too and normalize
   input like `https://www.Twitter.com/foo` → `twitter.com`.
@@ -56,7 +56,7 @@ If you change anything here, read [Evolving the contract](#evolving-the-contract
 
 | Function | Who uses it | Behaviour |
 | --- | --- | --- |
-| `validateConfig` | the cloud, on `PUT /api/v1/config` | minimal, lenient — old servers must never reject newer well-formed documents |
+| `validateConfig` | the cloud, on `PUT /api/v1/config` | minimal, lenient - old servers must never reject newer well-formed documents |
 | `validateConfigStrict` | producers: CLI, coach, client UIs | full structural validation of the canonical form |
 
 `schema.json` is the same strict shape as a formal JSON Schema (2020-12), for
@@ -69,13 +69,13 @@ list names) the device must enforce at that moment. `evaluateAt(config,
 minutesSinceMidnight, dayKey, device)` is the pure core. The behaviour is
 locked by tests that mirror the Rust engine's tests one-to-one.
 
-## Consumers — keep in sync
+## Consumers - keep in sync
 
 | Consumer | Where | Status |
 | --- | --- | --- |
-| Cloud API | `apps/cloud/lib/schema.ts` | duplicate of the types + minimal validator — collapse into this package (Phase 1) |
-| Desktop engine | `apps/desktop/src-tauri/src/schedule.rs` | Rust re-implementation — parity locked by mirrored tests |
-| iPhone app | `apps/iphone/YawningFace/Models.swift` | pre-contract local models — adopt contract during cloud-sync work (Phase 1) |
+| Cloud API | `apps/cloud/lib/schema.ts` | duplicate of the types + minimal validator - collapse into this package (Phase 1) |
+| Desktop engine | `apps/desktop/src-tauri/src/schedule.rs` | Rust re-implementation - parity locked by mirrored tests |
+| iPhone app | `apps/iphone/YawningFace/Models.swift` | pre-contract local models - adopt contract during cloud-sync work (Phase 1) |
 | Extension | `apps/extension/` | to be built against this package from day one |
 | CLI & coach | `apps/cli` | imports this package directly |
 

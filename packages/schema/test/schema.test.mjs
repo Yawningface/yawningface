@@ -57,7 +57,7 @@ test("strict validation flags duplicated ids", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Evaluation — parity with apps/desktop/src-tauri/src/schedule.rs tests
+// Evaluation - parity with apps/desktop/src-tauri/src/schedule.rs tests
 // ---------------------------------------------------------------------------
 
 const rustParityConfig = {

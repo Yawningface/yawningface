@@ -3,7 +3,7 @@ name: desktop-cache-warm
 # Populates the Rust build cache on the DEFAULT branch (main) so tag-triggered
 # desktop-release builds can RESTORE it. GitHub Actions caches are
 # branch/tag-scoped: a tag run can only read caches created on its own ref or
-# on the default branch — and desktop-release runs on tags, so without a
+# on the default branch - and desktop-release runs on tags, so without a
 # main-scoped cache every release recompiles ~400 crates cold (~15 min).
 #
 # Runs only when Rust dependencies actually change, plus a weekly heartbeat so

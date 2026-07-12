@@ -75,7 +75,7 @@ export default function SetupPage() {
       </p>
       <p className="mt-3 leading-relaxed text-muted">
         Heads-up: there is <strong className="text-white">no dashboard UI in v1</strong>.
-        The desktop app and the HTTP API are the interface — step 5 shows how
+        The desktop app and the HTTP API are the interface - step 5 shows how
         to edit your config with <code className="text-white">curl</code>.
       </p>
 
@@ -112,7 +112,7 @@ export default function SetupPage() {
               <code className="text-white">SUPABASE_URL</code>) and the{" "}
               <strong>service_role key</strong> (this is{" "}
               <code className="text-white">SUPABASE_SERVICE_ROLE_KEY</code>).
-              Treat the service-role key like a root password — it never
+              Treat the service-role key like a root password - it never
               leaves the server.
             </li>
           </ol>
@@ -165,7 +165,7 @@ export default function SetupPage() {
           <p>
             <strong>c) Note your values.</strong> From the tenant/application
             settings, write down the <strong>Domain</strong> (e.g.{" "}
-            <code className="text-white">your-tenant.eu.auth0.com</code> — this
+            <code className="text-white">your-tenant.eu.auth0.com</code> - this
             is <code className="text-white">AUTH0_DOMAIN</code>, no{" "}
             <code className="text-white">https://</code>) and the Native
             application&apos;s <strong>Client ID</strong> (the desktop app
@@ -219,7 +219,7 @@ NEXT_PUBLIC_SITE_URL=https://your-deployment.vercel.app`}</Code>
           <p>
             The app then shows a short <strong>device code</strong> and opens
             your browser to Auth0&apos;s activation page. Confirm the code,
-            sign in (or sign up), and the app receives its tokens — this is
+            sign in (or sign up), and the app receives its tokens - this is
             the Device Authorization Flow, the same thing your TV apps use.
             From then on it syncs your config from{" "}
             <code className="text-white">GET /api/v1/config</code> and reports
@@ -241,7 +241,7 @@ export BASE="https://your-deployment.vercel.app"
 
 curl -s "$BASE/api/v1/config" -H "Authorization: Bearer $TOKEN"`}</Code>
           <p>
-            Update it — for example, block Twitter and LinkedIn on weekday
+            Update it - for example, block Twitter and LinkedIn on weekday
             mornings everywhere:
           </p>
           <Code>{`curl -s -X PUT "$BASE/api/v1/config" \\
@@ -250,7 +250,7 @@ curl -s "$BASE/api/v1/config" -H "Authorization: Bearer $TOKEN"`}</Code>
   -d '${EXAMPLE_CONFIG}'`}</Code>
           <p>
             Every signed-in device picks the new config up on its next sync.
-            That&apos;s it — your attention now has a bouncer on every door.
+            That&apos;s it - your attention now has a bouncer on every door.
           </p>
         </Step>
       </div>

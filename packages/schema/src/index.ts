@@ -1,5 +1,5 @@
 /**
- * @yawningface/schema — the cross-device contract.
+ * @yawningface/schema - the cross-device contract.
  *
  * One JSON document per user. The cloud stores it verbatim (last write wins)
  * and never interprets it; every client evaluates it locally. This package is
@@ -126,7 +126,7 @@ export function defaultConfig(): BlockConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * Minimal structural validation — intentionally byte-compatible with what the
+ * Minimal structural validation - intentionally byte-compatible with what the
  * cloud accepts on PUT /api/v1/config (apps/cloud/lib/schema.ts). The server
  * is lenient so old servers never reject newer well-formed documents.
  * Returns an error message, or null if the shape is acceptable.
@@ -167,7 +167,7 @@ export function validateConfig(value: unknown): string | null {
 const HHMM = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 /**
- * Strict canonical validation — what well-behaved producers (CLI, coach,
+ * Strict canonical validation - what well-behaved producers (CLI, coach,
  * client UIs) must emit. Unknown fields are allowed everywhere so newer
  * documents keep validating on older code. Returns a list of problems;
  * empty list = valid.
@@ -258,7 +258,7 @@ export function validateConfigStrict(value: unknown): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Evaluation — parity with apps/desktop/src-tauri/src/schedule.rs
+// Evaluation - parity with apps/desktop/src-tauri/src/schedule.rs
 // ---------------------------------------------------------------------------
 
 /** The set of targets a device must block right now. */

@@ -1,8 +1,8 @@
-# @yawningface/cli — `yf`
+# @yawningface/cli - `yf`
 
 Talk to your blocker. The config is one JSON file you own
 (`./yawningface.json` by default); `yf` creates it, inspects it, checks it,
-and — **only if you opt in** — reshapes it by conversation.
+and - **only if you opt in** - reshapes it by conversation.
 
 ```
 $ yf init --template stress-free-mornings
@@ -21,16 +21,16 @@ Right now (thu 09:12):
 
 ```
 $ yf coach
-you › I'm on vacation next week — mornings feel oppressive, but keep my nights strict
+you › I'm on vacation next week - mornings feel oppressive, but keep my nights strict
 ```
 
-The coach's job is not to guard a single unlock — it edits the durable rules,
+The coach's job is not to guard a single unlock - it edits the durable rules,
 under a constitution: **sustainable beats radical, no guilt, smallest change
 that solves it, the user is sovereign.** Every proposal is validated against
 the [contract](../../packages/schema/README.md), shown as a diff, and applied
 only after you confirm.
 
-It needs a key for any OpenAI-compatible endpoint — and the default model is
+It needs a key for any OpenAI-compatible endpoint - and the default model is
 **free**: a $0 key from [openrouter.ai](https://openrouter.ai/) is enough.
 
 ```
@@ -54,4 +54,4 @@ npm test        # build + node --test
 ```
 
 Runtime dependencies: none (Node ≥ 20). The only workspace dependency is
-`@yawningface/schema` — the same contract every client enforces.
+`@yawningface/schema` - the same contract every client enforces.

@@ -1,7 +1,7 @@
 # Blocklist config schema (v1)
 
-This is the **cross-device contract** of YawningFace Block. Every client —
-the desktop apps (Tauri), the Chrome extension, and the iPhone app — reads
+This is the **cross-device contract** of YawningFace Block. Every client  - 
+the desktop apps (Tauri), the Chrome extension, and the iPhone app - reads
 and writes this exact JSON shape through `GET`/`PUT /api/v1/config`. The
 cloud stores it verbatim (one document per user, last write wins) and never
 interprets it; **all schedule evaluation happens on the clients**.
@@ -57,7 +57,7 @@ TypeScript types are exported from [`lib/schema.ts`](../lib/schema.ts).
 | `enabled`     | boolean        | Master switch. Disabled blocklists are never enforced.                 |
 | `severity`    | string         | `"block"` (hard block). Clients may also support `"warn"`.             |
 | `devices`     | string[]       | Any of `"desktop"`, `"mobile"`, `"tablet"`. A client only enforces blocklists that include its own category. |
-| `timeZone`    | string?        | IANA zone name. **Informational in v1** — see schedule semantics.      |
+| `timeZone`    | string?        | IANA zone name. **Informational in v1** - see schedule semantics.      |
 | `timePeriods` | `TimePeriod[]?`| Active windows. **Empty or missing = always active while enabled.**    |
 
 ## `TimePeriod`

@@ -27,7 +27,7 @@ The open-source app blocker. Set your schedule, pick your apps, stay focused. So
 
 **Take back your focus with YawningFace.**
 
-YawningFace is the first open-source app blocker with scheduled blocking. Unlike other blockers that only let you block "for 2 hours," YawningFace lets you set specific time periods—like 9pm to 9am—when your distracting apps are blocked.
+YawningFace is the first open-source app blocker with scheduled blocking. Unlike other blockers that only let you block "for 2 hours," YawningFace lets you set specific time periods - like 9pm to 9am - when your distracting apps are blocked.
 
 **HOW IT WORKS**
 

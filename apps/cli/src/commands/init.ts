@@ -27,7 +27,7 @@ interface Template {
 
 /**
  * The three starter shapes from the original 2025 design, plus an always-on
- * detox list. Every template starts enabled — running init is the consent.
+ * detox list. Every template starts enabled - running init is the consent.
  */
 export const TEMPLATES: Template[] = [
   {
@@ -128,7 +128,7 @@ export async function runInit(flags: {
 }): Promise<number> {
   const path = resolveConfigPath(flags.file);
   if (existsSync(path) && !flags.force) {
-    console.error(`✗ ${path} already exists — pass --force to overwrite it`);
+    console.error(`✗ ${path} already exists - pass --force to overwrite it`);
     return 1;
   }
 
@@ -141,14 +141,14 @@ export async function runInit(flags: {
 
   if (!template) {
     if (!process.stdin.isTTY) {
-      console.error("✗ no template chosen — pass --template <id>");
+      console.error("✗ no template chosen - pass --template <id>");
       console.error(`  available: ${TEMPLATES.map((t) => t.id).join(", ")}`);
       return 1;
     }
     console.log("Pick a starting point (everything is editable later):\n");
     TEMPLATES.forEach((t, i) => {
       const windows = renderWindows(t.config.blocklists[0].metadata.timePeriods);
-      console.log(`  ${i + 1}. ${t.title} — ${t.description} (${windows})`);
+      console.log(`  ${i + 1}. ${t.title} - ${t.description} (${windows})`);
     });
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     const answer = (await rl.question("\nNumber [1]: ")).trim();

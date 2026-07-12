@@ -1,10 +1,10 @@
 # block_cloud
 
-The cloud hub for **YawningFace Block** — a cross-device distraction-blocking
+The cloud hub for **YawningFace Block** - a cross-device distraction-blocking
 system by [Yawningface](https://github.com/Yawningface). It stores each
 user's canonical blocklist config, registers devices, ingests client events,
-and serves last-7-days summaries. Clients — the desktop apps (Tauri), the
-Chrome extension, and the iPhone app — all talk to this API; this repo also
+and serves last-7-days summaries. Clients - the desktop apps (Tauri), the
+Chrome extension, and the iPhone app - all talk to this API; this repo also
 serves the public landing page and the self-host guide.
 
 ## Architecture
@@ -39,7 +39,7 @@ serves the public landing page and the self-host guide.
   table with no policies, which locks out the anon key entirely.
   **TODO (v2 hardening)**: add per-user RLS policies so a lower-privilege key
   could be used.
-- **Contract**: the blocklist config JSON is the cross-device contract — see
+- **Contract**: the blocklist config JSON is the cross-device contract - see
   [`docs/schema.md`](docs/schema.md) and the types in
   [`lib/schema.ts`](lib/schema.ts).
 
@@ -79,7 +79,7 @@ written for a technical friend.
 | `AUTH0_DOMAIN`              | Auth0 tenant domain, no protocol/trailing slash                            | `yawningface.eu.auth0.com`          |
 | `AUTH0_AUDIENCE`            | Identifier of the Auth0 API; must match the audience clients request       | `https://block.yawningface.org/api` |
 | `SUPABASE_URL`              | Supabase project URL                                                       | `https://abcd.supabase.co`          |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key — server-side only, bypasses RLS, keep secret    | `eyJ…`                              |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key - server-side only, bypasses RLS, keep secret    | `eyJ…`                              |
 | `NEXT_PUBLIC_SITE_URL`      | Public URL of this deployment                                              | `https://block.yawningface.org`     |
 
 ## API reference
@@ -91,12 +91,12 @@ from token claims.
 
 | Method | Path              | Body                                                | Returns                                        |
 | ------ | ----------------- | --------------------------------------------------- | ---------------------------------------------- |
-| GET    | `/api/health`     | —  (no auth)                                        | `{ ok: true }`                                 |
-| GET    | `/api/v1/config`  | —                                                   | `{ config, updatedAt }` (creates a default config on first call) |
+| GET    | `/api/health`     | -  (no auth)                                        | `{ ok: true }`                                 |
+| GET    | `/api/v1/config`  | -                                                   | `{ config, updatedAt }` (creates a default config on first call) |
 | PUT    | `/api/v1/config`  | `{ config }` (validated: version 1 + blocklists)    | `{ config, updatedAt }`                        |
 | POST   | `/api/v1/devices` | `{ deviceId?, name, platform, appVersion? }`        | `{ deviceId }` (upsert; refreshes `last_seen_at`) |
 | POST   | `/api/v1/events`  | `{ deviceId, events: [{ type, occurredAt, payload? }] }` (max 500) | `{ inserted }`                  |
-| GET    | `/api/v1/summary` | —                                                   | Last-7-days events per day per type + device list |
+| GET    | `/api/v1/summary` | -                                                   | Last-7-days events per day per type + device list |
 
 `platform` is one of `mac`, `windows`, `linux`, `ios`, `android`,
 `extension`. `occurredAt` must be ISO 8601.

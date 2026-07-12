@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 /**
- * CORS for /api/v1/* — the Chrome extension (and any browser client) calls
+ * CORS for /api/v1/* - the Chrome extension (and any browser client) calls
  * these endpoints cross-origin with an Authorization header.
  */
 export const CORS_HEADERS: Record<string, string> = {

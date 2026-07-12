@@ -40,7 +40,7 @@ export async function runCoach(flags: {
     }
   } else {
     current = defaultConfig();
-    console.log(`(no config at ${path} yet — starting from the default; applying a change will create it)`);
+    console.log(`(no config at ${path} yet - starting from the default; applying a change will create it)`);
   }
 
   const messages: ChatMessage[] = [
@@ -56,7 +56,7 @@ export async function runCoach(flags: {
     if (proposal === null) return null;
     const problems = validateConfigStrict(proposal);
     if (problems.length > 0) {
-      console.error("\n✗ the coach proposed an invalid config — not applying it:");
+      console.error("\n✗ the coach proposed an invalid config - not applying it:");
       for (const problem of problems.slice(0, 5)) {
         console.error(`  - ${problem}`);
       }
@@ -86,7 +86,7 @@ export async function runCoach(flags: {
         writeConfig(path, proposal);
         console.log(`\n✓ applied to ${path}`);
       } else {
-        console.log(`\n(not applied — re-run with --apply, or use "yf coach" interactively)`);
+        console.log(`\n(not applied - re-run with --apply, or use "yf coach" interactively)`);
       }
     }
     return 0;
@@ -94,11 +94,11 @@ export async function runCoach(flags: {
 
   // Interactive mode.
   if (!process.stdin.isTTY) {
-    console.error('✗ not a terminal — use: yf coach --once "your message" [--apply]');
+    console.error('✗ not a terminal - use: yf coach --once "your message" [--apply]');
     return 1;
   }
 
-  console.log(`YawningFace Coach — opt-in AI (${endpoint.model} via ${endpoint.baseUrl})`);
+  console.log(`YawningFace Coach - opt-in AI (${endpoint.model} via ${endpoint.baseUrl})`);
   console.log("Your config and messages are sent to that endpoint; nothing else is.");
   console.log('Talk about your life, ask for changes, or type "/quit" to leave.\n');
 

@@ -14,7 +14,7 @@ export function runShow(fileFlag: string | undefined): number {
 
   console.log(`${path}\n`);
   if (config.blocklists.length === 0) {
-    console.log("  (no blocklists — try \"yf init\" or \"yf coach\")");
+    console.log("  (no blocklists - try \"yf init\" or \"yf coach\")");
   }
   for (const list of config.blocklists) {
     const state = list.metadata.enabled ? "●" : "○";
@@ -22,8 +22,8 @@ export function runShow(fileFlag: string | undefined): number {
     console.log(`${state} ${list.name} (${list.id})`);
     console.log(`    ${severity} on ${list.metadata.devices.join(", ") || "no devices"}`);
     console.log(`    ${renderWindows(list.metadata.timePeriods)}`);
-    console.log(`    websites: ${list.targets.websites.join(", ") || "—"}`);
-    console.log(`    apps:     ${list.targets.apps.join(", ") || "—"}`);
+    console.log(`    websites: ${list.targets.websites.join(", ") || " - "}`);
+    console.log(`    apps:     ${list.targets.apps.join(", ") || " - "}`);
     console.log("");
   }
 

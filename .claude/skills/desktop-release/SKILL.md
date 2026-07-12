@@ -1,12 +1,12 @@
 ---
 name: desktop-release
-description: Use when the user asks to build, version, tag, release, or troubleshoot the desktop app (apps/desktop) — Mac/Windows installers, the GitHub Actions release pipeline, draft releases, version bumps, or build-cache issues.
+description: Use when the user asks to build, version, tag, release, or troubleshoot the desktop app (apps/desktop) - Mac/Windows installers, the GitHub Actions release pipeline, draft releases, version bumps, or build-cache issues.
 ---
 
-# Desktop release — Mac & Windows installers from GitHub Actions
+# Desktop release - Mac & Windows installers from GitHub Actions
 
 System adapted from turbo-screenshot's proven pipeline. Two workflows at the
-repo root (nested `.github` dirs inside apps/ never run — that's why the old
+repo root (nested `.github` dirs inside apps/ never run - that's why the old
 one was deleted):
 
 | Workflow | Trigger | Output |
@@ -35,7 +35,7 @@ run page (`gh run download <run-id>`).
    - `apps/desktop/package.json`
    - `apps/desktop/src-tauri/Cargo.toml`
    - `apps/desktop/src-tauri/tauri.conf.json`
-2. Commit to main, then tag and push — **the tag prefix is `desktop-v`**
+2. Commit to main, then tag and push - **the tag prefix is `desktop-v`**
    (monorepo: other apps get their own prefixes later):
    ```powershell
    git commit -am "desktop: release v0.1.2"
@@ -44,7 +44,7 @@ run page (`gh run download <run-id>`).
    git push origin desktop-v0.1.2
    ```
 3. Watch: `gh run watch`. Then inspect the **draft** release
-   (`gh release list`) — check both installers are attached — and publish it
+   (`gh release list`) - check both installers are attached - and publish it
    in the GitHub UI. Draft-by-design: nothing goes public without eyes on it.
 
 ## The cache system (don't break it)
@@ -52,10 +52,10 @@ run page (`gh run download <run-id>`).
 GitHub Actions caches are branch-scoped: tag runs can only *restore* caches
 created on the default branch. So `desktop-cache-warm` (main-only) **owns
 writing** the shared slot `desktop-release`, and the release workflow sets
-`save-if: 'false'` — it restores, never writes. Break that discipline and
+`save-if: 'false'` - it restores, never writes. Break that discipline and
 every release recompiles ~400 crates cold (~15 min). Warm runs on Windows
 only; the mac leg builds cold (macOS runners cost 10× minutes while the repo
-is private — free when it goes public).
+is private - free when it goes public).
 
 ## Unsigned-build warnings (expected, not failures)
 

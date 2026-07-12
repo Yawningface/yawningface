@@ -1,4 +1,4 @@
-# Secrets — never commit. The coach reads OPENCODE_API_KEY from .env locally.
+# Secrets - never commit. The coach reads OPENCODE_API_KEY from .env locally.
 .env
 .env.*
 !.env.example

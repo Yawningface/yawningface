@@ -7,7 +7,7 @@ import { loadDotEnv } from "./util.js";
 
 const VERSION = "0.1.0";
 
-const HELP = `yf — talk to your blocker
+const HELP = `yf - talk to your blocker
 
 Usage
   yf init [--template <id>] [--file <path>] [--force]    create a starter config
@@ -17,8 +17,8 @@ Usage
 
 Config resolution: --file, else $YF_CONFIG, else ./yawningface.json
 Templates: stress-free-mornings | freedom-afternoons | better-sleep-nights | social-detox
-Coach env: YF_COACH_API_KEY (required — a free openrouter.ai key is enough),
-           YF_COACH_BASE_URL, YF_COACH_MODEL — see .env.example
+Coach env: YF_COACH_API_KEY (required - a free openrouter.ai key is enough),
+           YF_COACH_BASE_URL, YF_COACH_MODEL - see .env.example
 
 The coach is optional by design. The config is a JSON file you own; every
 command works without any AI or any account.`;

@@ -52,7 +52,7 @@ export function readConfig(path: string): BlockConfig {
     raw = readFileSync(path, "utf8");
   } catch {
     throw new Error(
-      `no config found at ${path} — create one with "yf init" or point at one with --file`,
+      `no config found at ${path} - create one with "yf init" or point at one with --file`,
     );
   }
   let parsed: unknown;

@@ -2,7 +2,7 @@
   "name": "yawningface",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source, free, cross-device distraction blocker — one blocking brain on every device.",
+  "description": "Open-source, free, cross-device distraction blocker - one blocking brain on every device.",
   "license": "MIT",
   "workspaces": [
     "packages/*",
