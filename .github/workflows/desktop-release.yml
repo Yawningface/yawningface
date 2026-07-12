@@ -65,7 +65,8 @@ jobs:
           # Empty tagName on manual runs = build only, no release created.
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: 'YawningFace Desktop v__VERSION__'
-          releaseDraft: true
+          # Publish immediately so builds are visible on the Releases page (drafts are hidden).
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
 
