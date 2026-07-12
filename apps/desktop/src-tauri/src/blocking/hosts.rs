@@ -1,8 +1,8 @@
 //! Website blocking via a managed section in the OS hosts file.
 //!
 //! The unprivileged app writes the desired domain list to a user-writable
-//! "spool" file. A privileged applier — installed once with a single admin
-//! prompt (see `platform.rs`) — reads the spool, validates every line, and
+//! "spool" file. A privileged applier - installed once with a single admin
+//! prompt (see `platform.rs`) - reads the spool, validates every line, and
 //! rewrites only the marked section of the hosts file:
 //!
 //!   macOS:   root LaunchDaemon with WatchPaths on the spool (applies instantly)
@@ -168,7 +168,7 @@ pub fn flush_dns() {
     }
 }
 
-/// True if the managed hosts section currently matches the desired set —
+/// True if the managed hosts section currently matches the desired set  - 
 /// how the UI knows whether the privileged applier is working.
 pub fn hosts_section_matches(domains: &BTreeSet<String>) -> bool {
     let valid: Vec<String> = domains

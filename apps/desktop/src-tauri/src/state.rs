@@ -14,7 +14,7 @@ pub struct AppState {
     pub blocked_apps: Mutex<BTreeSet<String>>,
     /// Last domain set written to the spool (change detection). `None` until
     /// the first tick so startup always reconciles the spool/hosts with the
-    /// real desired state — a stale spool from a previous run must be fixed.
+    /// real desired state - a stale spool from a previous run must be fixed.
     pub last_domains: Mutex<Option<BTreeSet<String>>>,
     pub http: reqwest::Client,
 }

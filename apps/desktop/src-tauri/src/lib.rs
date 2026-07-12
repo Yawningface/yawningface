@@ -68,7 +68,7 @@ async fn login_poll(app: AppHandle, info: DeviceCodeInfo) -> Result<(), String> 
         *state.tokens.lock().unwrap() = Some(tokens.clone());
     }
 
-    // Register this device with the backend (best effort — retried on demand).
+    // Register this device with the backend (best effort - retried on demand).
     if let Ok(device_id) = sync::register_device(&app, &settings, &tokens).await {
         let state = app.state::<AppState>();
         let mut settings_now = state.settings.lock().unwrap();
@@ -142,6 +142,43 @@ async fn stop_session(app: AppHandle) -> Result<EngineStatus, String> {
     sync_now(app).await
 }
 
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LocalConfigInfo {
+    path: String,
+    config: serde_json::Value,
+}
+
+/// The local scheduled-sessions config (canonical schema, shared with `yf`).
+#[tauri::command]
+fn get_local_config(app: AppHandle) -> LocalConfigInfo {
+    let path = sync::local_config_path(&app);
+    let mut config: serde_json::Value = load_json(&path);
+    if !config.is_object() {
+        config = json!({ "version": 1, "blocklists": [] });
+    }
+    LocalConfigInfo {
+        path: path.to_string_lossy().into_owned(),
+        config,
+    }
+}
+
+#[tauri::command]
+async fn save_local_config(
+    app: AppHandle,
+    config: serde_json::Value,
+) -> Result<EngineStatus, String> {
+    if !config
+        .get("blocklists")
+        .map(|b| b.is_array())
+        .unwrap_or(false)
+    {
+        return Err("Config must contain a blocklists array.".into());
+    }
+    save_json(&sync::local_config_path(&app), &config)?;
+    sync_now(app).await
+}
+
 #[tauri::command]
 async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
     // Blocking admin-prompt call; run it off the async runtime.
@@ -208,7 +245,7 @@ fn toggle_session_from_tray(app: &AppHandle) {
         session.is_running()
     };
     // Starting a session before the hosts helper exists would silently not
-    // block websites — surface the one-time setup card instead of failing.
+    // block websites - surface the one-time setup card instead of failing.
     if !running && !blocking::platform::helper_installed() {
         show_main_window(app);
     }
@@ -242,6 +279,8 @@ pub fn run() {
             sync_now,
             start_session,
             stop_session,
+            get_local_config,
+            save_local_config,
             setup_hosts_helper
         ])
         .setup(|app| {
@@ -261,7 +300,7 @@ pub fn run() {
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             // Tray icon + menu. Clicking the tray icon opens this menu (both
-            // buttons, macOS and Windows) — the window only opens on request.
+            // buttons, macOS and Windows) - the window only opens on request.
             let session_item =
                 MenuItemBuilder::with_id("session", "Start working session (1 h)").build(app)?;
             let open_item = MenuItemBuilder::with_id("open", "Open YawningFace Block").build(app)?;

@@ -1,4 +1,4 @@
-# YawningFace Block — Desktop
+# YawningFace Block - Desktop
 
 Cross-device distraction blocker for **macOS** and **Windows**. Open-source
 alternative to Freedom, Cold Turkey and SelfControl, built with Tauri 2.
@@ -14,16 +14,16 @@ extension in
 
 - Lives in the **menu bar** (macOS) / **system tray** (Windows). Closing the
   window keeps it running; it starts at login.
-- Signs in with your **YawningFace account** (Auth0 device flow — a short code
+- Signs in with your **YawningFace account** (Auth0 device flow - a short code
   you confirm in the browser).
 - Every 30 s it pulls your **blocking schedule** from the server, evaluates it
   against local time, and enforces it:
-  - **Websites** — a managed section in the OS hosts file, applied by a small
+  - **Websites** - a managed section in the OS hosts file, applied by a small
     privileged helper you approve once (macOS LaunchDaemon / Windows SYSTEM
     scheduled task). Works in every browser.
-  - **Apps** — a watcher terminates blocked apps within ~5 s of launch.
+  - **Apps** - a watcher terminates blocked apps within ~5 s of launch.
 - Ships **usage events** (blocking applied, app kill attempts, heartbeats)
-  back to the server — the raw material for your daily AI usage digest and,
+  back to the server - the raw material for your daily AI usage digest and,
   later, friends leaderboards.
 - Works **offline** from the last cached schedule.
 
@@ -64,7 +64,7 @@ npm run tauri build      # local production bundle
 
 Build-time defaults can be injected via env vars: `YF_API_BASE`,
 `YF_AUTH0_DOMAIN`, `YF_AUTH0_CLIENT_ID`, `YF_AUTH0_AUDIENCE` (see
-`.github/workflows/release.yml` — set them as GitHub repository variables).
+`.github/workflows/release.yml` - set them as GitHub repository variables).
 
 Releases: `git tag v0.x.y && git push --tags` → GitHub Actions builds the
 macOS dmg + Windows installer and attaches them to a draft release.
@@ -93,19 +93,19 @@ applier owned by root/SYSTEM:
   every minute.
 
 The applier re-validates every domain against a strict charset and only ever
-writes `0.0.0.0` entries inside clearly marked BEGIN/END lines — a tampered
+writes `0.0.0.0` entries inside clearly marked BEGIN/END lines - a tampered
 spool can block sites, never redirect them.
 
-**Uninstall the helper**: macOS —
+**Uninstall the helper**: macOS  - 
 `sudo launchctl bootout system/org.yawningface.block.hostsd && sudo rm /Library/LaunchDaemons/org.yawningface.block.hostsd.plist "/Library/Application Support/YawningFaceBlock/apply-hosts.sh"`;
-Windows — `schtasks /Delete /TN YawningFaceBlockHosts /F` (elevated) and delete
+Windows - `schtasks /Delete /TN YawningFaceBlockHosts /F` (elevated) and delete
 `C:\ProgramData\YawningFaceBlock`. Both leave the hosts file clean after the
 managed section is emptied.
 
 ## Honest limitations (v0.1)
 
 - Hosts-file blocking can be bypassed by browsers using DNS-over-HTTPS and by
-  editing the hosts file as admin. It's friction, not a prison — pair it with
+  editing the hosts file as admin. It's friction, not a prison - pair it with
   the Chrome extension for request-level blocking.
 - App matching is by process name (prefix, case-insensitive).
 - No strict mode yet: quitting the app stops enforcement. Planned: the

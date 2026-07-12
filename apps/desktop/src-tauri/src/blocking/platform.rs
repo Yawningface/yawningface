@@ -1,9 +1,9 @@
 //! One-time privileged setup for website blocking (one admin prompt, then
 //! silent forever):
 //!
-//!   macOS   — installs a root-owned applier script plus a LaunchDaemon that
+//!   macOS   - installs a root-owned applier script plus a LaunchDaemon that
 //!             watches the user spool file and applies it instantly.
-//!   Windows — installs an applier PowerShell script in ProgramData plus a
+//!   Windows - installs an applier PowerShell script in ProgramData plus a
 //!             SYSTEM scheduled task that runs it every minute.
 //!
 //! The applier scripts are installed root/admin-owned and re-validate every
@@ -17,7 +17,7 @@ pub const MAC_DAEMON_LABEL: &str = "org.yawningface.block.hostsd";
 
 /// Absolute paths for System32 tools. Privileged plumbing must never depend
 /// on PATH: a stripped or broken PATH otherwise turns setup into a cryptic
-/// "program not found" — and the elevated child inherits that same PATH.
+/// "program not found" - and the elevated child inherits that same PATH.
 #[cfg(target_os = "windows")]
 fn windir() -> String {
     std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into())
@@ -76,7 +76,7 @@ fn install_helper_macos() -> Result<(), String> {
     let spool_str = spool.to_string_lossy().to_string();
 
     let script = r##"#!/bin/bash
-# YawningFace Block — hosts applier. Runs as root via LaunchDaemon.
+# YawningFace Block - hosts applier. Runs as root via LaunchDaemon.
 # Reads the user spool file, validates every domain, and rewrites only the
 # managed section of /etc/hosts. Entries always point to 0.0.0.0.
 SPOOL="$1"
@@ -242,7 +242,8 @@ if (($existing -join "`n") -ne ($new -join "`n")) {
         r#"$ErrorActionPreference = 'Stop'
 $dir = 'C:\ProgramData\YawningFaceBlock'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-Start-Transcript -Path (Join-Path $dir 'setup.log') -Force | Out-Null
+$log = Join-Path $dir 'setup.log'
+"setup started $(Get-Date -Format o)" | Set-Content $log
 try {{
   $ps = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   Copy-Item -Force '{applier}' (Join-Path $dir 'apply-hosts.ps1')
@@ -254,10 +255,20 @@ try {{
   # A blocker that pauses on battery would be a broken product.
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
   Register-ScheduledTask -Force -TaskName 'YawningFaceBlockHosts' -Action $action -Trigger @($minutely, $atBoot) -Principal $principal -Settings $settings | Out-Null
+  # Tasks registered for SYSTEM are unreadable to normal processes by default,
+  # which made the app's own "is it installed?" check fail with access denied.
+  # Grant Authenticated Users read+execute: the app can verify the task exists
+  # and nudge it with schtasks /Run, but not modify or delete it.
+  $svc = New-Object -ComObject 'Schedule.Service'
+  $svc.Connect()
+  $svc.GetFolder('\').GetTask('YawningFaceBlockHosts').SetSecurityDescriptor('D:AI(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)', 0)
   Start-ScheduledTask -TaskName 'YawningFaceBlockHosts'
+  "setup ok $(Get-Date -Format o)" | Add-Content $log
 }}
-finally {{
-  Stop-Transcript | Out-Null
+catch {{
+  "SETUP FAILED: $($_.Exception.Message)" | Add-Content $log
+  "AT: $($_.InvocationInfo.PositionMessage)" | Add-Content $log
+  exit 1
 }}
 "#,
         applier = tmp_applier.to_string_lossy(),
@@ -267,10 +278,10 @@ finally {{
     std::fs::write(&tmp_setup, setup).map_err(|e| e.to_string())?;
 
     // Elevate: Start-Process -Verb RunAs triggers the UAC prompt. A declined
-    // prompt throws Win32 error 1223 (ERROR_CANCELLED) — detect it by code,
+    // prompt throws Win32 error 1223 (ERROR_CANCELLED) - detect it by code,
     // not by message text, so it works on every Windows language.
     let elevate = format!(
-        "try {{ Start-Process -FilePath '{}' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}' }} catch {{ $native = $_.Exception.InnerException; if ($native -and $native.NativeErrorCode -eq 1223) {{ Write-Error 'YF_UAC_CANCELLED' }} else {{ Write-Error ('YF_ELEVATE_FAIL: ' + $_.Exception.Message) }}; exit 1 }}",
+        "try {{ $p = Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}'; if ($p.ExitCode -ne 0) {{ Write-Error 'YF_SETUP_FAIL'; exit 1 }} }} catch {{ $native = $_.Exception.InnerException; if ($native -and $native.NativeErrorCode -eq 1223) {{ Write-Error 'YF_UAC_CANCELLED' }} else {{ Write-Error ('YF_ELEVATE_FAIL: ' + $_.Exception.Message) }}; exit 1 }}",
         powershell_exe(),
         tmp_setup.to_string_lossy()
     );
@@ -281,15 +292,37 @@ finally {{
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         if err.contains("YF_UAC_CANCELLED") {
-            return Err("Setup was cancelled at the permission prompt — nothing was changed. Click again whenever you're ready.".into());
+            return Err("Setup was cancelled at the permission prompt. Nothing was changed; click again whenever you're ready.".into());
+        }
+        if err.contains("YF_SETUP_FAIL") {
+            return Err(format!("Setup failed: {}", setup_log_error()));
         }
         let short: String = err.chars().take(200).collect();
         return Err(format!("Helper install failed: {short}"));
     }
     if !helper_installed() {
-        return Err("The scheduled task was not created. Please try again.".into());
+        return Err(format!(
+            "Setup finished but the task can't be verified: {}",
+            setup_log_error()
+        ));
     }
     Ok(())
+}
+
+/// Last error line from the elevated setup's log, for actionable messages.
+#[cfg(target_os = "windows")]
+fn setup_log_error() -> String {
+    // Set-Content in Windows PowerShell writes ANSI, not UTF-8: decode lossily.
+    std::fs::read(r"C:\ProgramData\YawningFaceBlock\setup.log")
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+        .and_then(|log| {
+            log.lines()
+                .rev()
+                .find(|l| l.starts_with("SETUP FAILED:"))
+                .map(|l| l.trim_start_matches("SETUP FAILED:").trim().to_string())
+        })
+        .unwrap_or_else(|| "no details in C:\\ProgramData\\YawningFaceBlock\\setup.log".into())
 }
 
 /// Nudges the privileged applier to run now (macOS applies via WatchPaths

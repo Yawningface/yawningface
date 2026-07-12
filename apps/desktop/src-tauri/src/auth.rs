@@ -1,4 +1,4 @@
-//! Auth0 Device Authorization Flow (RFC 8628) — the "TV app" login.
+//! Auth0 Device Authorization Flow (RFC 8628) - the "TV app" login.
 //! The app shows a short code, the user confirms it in their browser, and we
 //! poll Auth0 until tokens arrive. Requires a Native application in Auth0 with
 //! the Device Code and Refresh Token grants enabled, and an API (audience)

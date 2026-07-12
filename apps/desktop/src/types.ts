@@ -25,6 +25,39 @@ export interface EngineStatus {
   sessionUntil: string | null;
 }
 
+export interface TimePeriod {
+  startTime: string;
+  endTime: string;
+  schedule: string[];
+}
+
+export interface Blocklist {
+  id: string;
+  name: string;
+  metadata: {
+    enabled: boolean;
+    devices?: string[];
+    timePeriods: TimePeriod[];
+  };
+  targets: {
+    websites: string[];
+    apps: string[];
+  };
+}
+
+/** Canonical config document (shared with the yf CLI). Extra fields written
+    by other tools are preserved verbatim. */
+export interface LocalConfig {
+  version: number;
+  blocklists: Blocklist[];
+  [key: string]: unknown;
+}
+
+export interface LocalConfigInfo {
+  path: string;
+  config: LocalConfig;
+}
+
 export interface FullState {
   settings: Settings;
   status: EngineStatus;

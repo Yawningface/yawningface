@@ -1,5 +1,5 @@
 //! App blocking: a lightweight watcher that terminates blocked processes.
-//! No privileges needed — we only kill processes owned by the current user.
+//! No privileges needed - we only kill processes owned by the current user.
 
 use std::collections::BTreeSet;
 use sysinfo::{ProcessesToUpdate, System};

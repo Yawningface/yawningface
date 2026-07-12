@@ -146,6 +146,20 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         .map(schedule::evaluate)
         .unwrap_or_default();
 
+    // 3a. Local scheduled sessions: same canonical schema, no account needed.
+    // This is the file the yf CLI reads and edits (point YF_CONFIG at it).
+    let local_config: Value = load_json(&local_config_path(app));
+    if !local_config.is_null() {
+        let local_set = schedule::evaluate(&local_config);
+        block_set.domains.extend(local_set.domains);
+        block_set.apps.extend(local_set.apps);
+        for name in local_set.active_lists {
+            if !block_set.active_lists.contains(&name) {
+                block_set.active_lists.push(name);
+            }
+        }
+    }
+
     // 3b. Merge the local one-click working session (works with no account).
     let session = {
         let mut session = state.local_session.lock().unwrap();
@@ -226,7 +240,7 @@ fn apply_block_set(app: &AppHandle, block_set: &BlockSet) -> Result<(), String> 
     }
 
     // Domains: only touch the spool/hosts when the set changed. `None` means
-    // first tick after launch — always write, to clean up any stale state a
+    // first tick after launch - always write, to clean up any stale state a
     // previous run left behind.
     let changed = {
         let mut last = state.last_domains.lock().unwrap();
@@ -367,6 +381,13 @@ async fn flush_events(
 
 pub fn config_cache_path(app: &AppHandle) -> std::path::PathBuf {
     app_config_dir(app).join("config_cache.json")
+}
+
+/// Local scheduled sessions, in the canonical schema. Named yawningface.json
+/// on purpose: it is a valid config for the yf CLI, so the app and the CLI
+/// edit the same document.
+pub fn local_config_path(app: &AppHandle) -> std::path::PathBuf {
+    app_config_dir(app).join("yawningface.json")
 }
 
 pub fn tokens_path(app: &AppHandle) -> std::path::PathBuf {

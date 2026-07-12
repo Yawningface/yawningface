@@ -75,7 +75,7 @@ impl Tokens {
 }
 
 /// Built-in blocklist for the one-click offline "working session".
-/// No account needed — this is the app's default mode.
+/// No account needed - this is the app's default mode.
 pub const DEFAULT_SESSION_DOMAINS: &[&str] = &[
     "linkedin.com",
     "twitter.com",
