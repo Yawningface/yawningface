@@ -4,10 +4,11 @@ pub mod schedule;
 pub mod settings;
 pub mod state;
 pub mod sync;
+pub mod tray;
 
 use serde_json::json;
 use tauri::menu::{MenuBuilder, MenuItem, MenuItemBuilder};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
@@ -178,19 +179,23 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
+const TRAY_ID: &str = "main-tray";
+
 /// Handle to the tray's session menu item so its label can follow the
 /// session state ("Start working session" <-> "End working session").
 pub struct TrayUi {
     pub session_item: MenuItem<Wry>,
 }
 
-/// Keeps the tray menu label in sync with the running session.
+/// Keeps the tray dot, tooltip, and menu label in sync with the running
+/// session. The dot is the whole status display: green means blocked.
 pub fn update_tray(app: &AppHandle) {
     let running = {
         let state = app.state::<AppState>();
         let session = state.local_session.lock().unwrap();
         session.is_running()
     };
+
     if let Some(tray_ui) = app.try_state::<TrayUi>() {
         let label = if running {
             "End working session"
@@ -198,6 +203,19 @@ pub fn update_tray(app: &AppHandle) {
             "Start working session (1 h)"
         };
         let _ = tray_ui.session_item.set_text(label);
+    }
+
+    if let Some(icon) = app.tray_by_id(TRAY_ID) {
+        let _ = icon.set_icon(Some(if running {
+            tray::active()
+        } else {
+            tray::idle()
+        }));
+        let _ = icon.set_tooltip(Some(if running {
+            "YawningFace: blocking. Click to unblock."
+        } else {
+            "YawningFace: not blocking. Click to block."
+        }));
     }
 }
 
@@ -260,8 +278,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // Tray icon + menu. Clicking the tray icon opens this menu (both
-            // buttons, macOS and Windows) — the window only opens on request.
+            // Tray dot + menu. Left-click toggles blocking on the spot (the dot
+            // turns green); right-click opens the menu. The window only opens
+            // on request.
             let session_item =
                 MenuItemBuilder::with_id("session", "Start working session (1 h)").build(app)?;
             let open_item = MenuItemBuilder::with_id("open", "Open YawningFace Block").build(app)?;
@@ -274,11 +293,25 @@ pub fn run() {
                 .build()?;
             app.manage(TrayUi { session_item });
 
-            TrayIconBuilder::with_id("main-tray")
-                .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("YawningFace Block")
+            TrayIconBuilder::with_id(TRAY_ID)
+                .icon(tray::idle())
+                // The dot is colored on purpose; macOS must not recolor it to
+                // match the menu bar or the green/gray distinction is lost.
+                .icon_as_template(false)
+                .tooltip("YawningFace: not blocking. Click to block.")
                 .menu(&menu)
-                .show_menu_on_left_click(true)
+                // Left-click is the toggle, so it must not open the menu.
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        toggle_session_from_tray(tray.app_handle());
+                    }
+                })
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "session" => toggle_session_from_tray(app),
                     "open" => show_main_window(app),
