@@ -14,22 +14,28 @@ true, and the corner we thought was ours is the one that got crowded.**
 | --- | --- |
 | "Open source is held only by Foqos, and it's iPhone-only" | Open source + free + physical unlock is now held **three times over**: Foqos (iOS), Normal (iOS), Switchly (Android), plus Curbox (Android). It is the *default* in this niche, not a moat. |
 | "Freedom is closed and paid" | Freedom has a **free tier** that syncs blocklists across unlimited devices on 5 platforms. Free + cross-device is no longer empty. |
-| "Free is a differentiator" | ScreenZen is **100% free, no premium tier at all**, on iOS *and* Android. Cold Turkey and AppBlock also have real free tiers. |
+| "Free is a differentiator" | ScreenZen is **100% free, no premium tier at all**, on iOS, Android, **macOS and Windows**. Cold Turkey and AppBlock also have real free tiers. |
 
 **What is still genuinely empty.** Searched hard for a counter-example, found
 none:
 
 1. **One config, enforced natively on iPhone + Android + Mac + Windows + browser,
    free and open source.** A handful of products do span phone and desktop
-   (Freedom, Focus Bear, BlockerX, FocusMe, Pluckeye), and **every one of them is
-   closed source**. Freedom is the only one whose *sessions genuinely fan out* to
+   (Freedom, Focus Bear, BlockerX, FocusMe, Pluckeye, ScreenZen, and Opal on the
+   Apple + Android side), and **every one of them is closed source**. Freedom is the only one whose *sessions genuinely fan out* to
    every device, and it paywalls the two things that make a config a config:
    scheduling and locked mode. Meanwhile every open-source blocker is stuck on
    exactly one platform. **Nobody in OSS crosses the phone/desktop line.** That
    intersection, cross-device *and* open, is the wedge, and it is empty.
-2. **An AI that rewrites the durable config.** Still nobody. Everything shipped is
-   a doorman arguing about one unlock (Zario, LOCKR).
-3. **Agent-native / CLI.** Nobody. Not one competitor speaks a terminal.
+2. **A conversational AI that rewrites a portable, user-owned config.** The
+   closest anyone gets is FocusMe's AI Coach, which analyzes usage and applies
+   plan recommendations one click at a time, inside its own closed plans. Real,
+   and closer than the doormen (Zario, LOCKR), but it is not conversational, not
+   cross-device, and the "config" is theirs, not yours.
+3. **Agent-native.** FocusMe ships a CLI (start/stop/list plans, cron and Task
+   Scheduler integration), so "not one competitor speaks a terminal" is false.
+   What remains empty: an open config contract a terminal or an agent can *edit*,
+   not just a remote control for opaque plans.
 4. **A self-hostable hub.** Nobody.
 
 The pitch is therefore no longer "free + open + physical". Foqos already is that.
@@ -47,15 +53,16 @@ everyone at once.
 | App | Price | Beyond iOS | Signature move |
 | --- | --- | --- | --- |
 | **Apple Screen Time** | free, built in | Apple only | the real default. Trivially bypassed ("Ignore Limit"), which is the reason this market exists |
-| **Opal** | $99.99/yr, $19.99/mo, $399 lifetime | iPad, macOS, Chrome ext | Deep Focus (genuinely unbypassable), focus score, friend leaderboards. **No Windows, no Android** |
+| **Opal** | $99.99/yr, $19.99/mo, $399 lifetime | iPad, macOS, Chrome ext, **Android (since mid-2025, ~88K installs/mo, 4.2 stars)** | Deep Focus (genuinely unbypassable), focus score, friend leaderboards. Still no Windows |
 | **Foqos** | **free, MIT** | iOS only | **the OSS benchmark.** 12 blocking strategies (NFC / QR / timer / hybrid), break allowances, streaks, Live Activities. 4.9 stars on 5000+ reviews, 588 GitHub stars, 108 forks, v2.1.0 shipped July 2026. Local only, no sync |
 | **Normal** | **free, open source** | iOS only | any NFC tag or QR code (incl. AirTags), PBKDF2-hashed pairing, app groups, timed unlocks. Zero data collection, local only, no sync |
-| **ScreenZen** | **100% free** (donations) | Android | per-open pause + intention prompts. No premium tier at all. Sells the Halo puck ($49) |
+| **ScreenZen** | **100% free** (donations) | Android, **macOS, Windows** | per-open pause + intention prompts. No premium tier at all. Sells the Halo puck ($49). Free and on all four consumer platforms: the closest thing to our shape, just closed source |
 | **one sec** | ~$4.99/mo, free = 1 app | Android | forced breathing pause. Peer-reviewed, -57% app opens |
 | **AppBlock** | free tier; $29.99/yr, $89.99 lifetime | Android, Chrome/Edge/Brave | 15M+ users. **Location and WiFi-triggered blocking**, Strict Mode, profiles |
 | **Jomo** | ~$4.99/mo, $29.99/yr | Apple only | NFC tags, templates, journaling, AI photo-proof unlock |
 | **Roots** | $59.99/yr | iOS | Monk Mode, no overrides. "Digital dopamine" tracker |
 | **Clearspace** | free = 1 app, $49.99/yr | iOS | pushups convert to screen minutes; accountability teammates |
+| **BePresent** | freemium | Android | gamified "present sessions", friend competition, real-life rewards |
 | **Freedom** | free tier; $39.99/yr | Mac/Win/Android/Chromebook/ext | the only true cross-device incumbent |
 | **Forfeit** | stakes | Android | bet real money on staying under your limit |
 | **Brick / Unpluq / Blok / Bloom** | hardware, see below | Android too | physical NFC unlock |
@@ -123,7 +130,9 @@ both understand this. Do not ship a standalone extension.
 | **Cold Turkey** | **free tier**; Pro ~$39 one-time | the strict standard. Frozen Turkey locks the whole machine. One key covers every computer you own. **No mobile, ever** (they say so explicitly) |
 | **SelfControl** | **free, GPL** | the original. Set a timer; the block survives a restart *and* deleting the app. Websites only, no app blocking, no sync. v4.0.2 |
 | **Freedom** | free tier; $39.99/yr | cross-device sessions |
-| **Opal** | $99.99/yr | Mac client of an Apple-only ecosystem |
+| **Opal** | $99.99/yr | Mac client; ecosystem is Apple + Android now, still no Windows |
+| **ScreenZen** | **100% free** | Mac app (macOS 13+), same pause model as mobile |
+| **Raycast Focus** | free (inside Raycast) | focus sessions that block apps and sites, browser integration. Ambient distribution: it rides an app people already have open |
 | **1Focus** | paid, Mac App Store | Mac-native app and website blocker |
 | **Focus** (heyfocus.com) | paid | scriptable, Pomodoro-integrated |
 | **FocusMe** | $119.99 lifetime, or subscription | also Win/Linux/Android |
@@ -143,6 +152,7 @@ The strictest platform, and the one where a one-time purchase still wins.
 | **Pluckeye** | free / donation | Win/Mac/Linux/Android. **Delay-based instead of passwords**: setting changes take effect later, never now |
 | **BlockerX** | freemium | porn-blocking first, distraction second. Cross-platform |
 | **Focus Bear** | subscription | routines for neurodiverse users. Win/Mac/iOS/Android |
+| **ScreenZen** | **100% free** | Windows app too; free on all four consumer platforms |
 | **RescueTime** | subscription | tracker first, FocusTime blocking bolted on |
 | **Microsoft Family Safety** | free | the built-in default |
 
@@ -212,14 +222,17 @@ moment.
 | **LOCKR** (MWM) | you type a *reason*, the coach judges it against a strictness setting and grants N minutes |
 | **Zensi / ScreenCoach / Superhappy** | variations on the same |
 | **Jomo** | AI photo-proof ("show me you're at the gym") |
+| **FocusMe** | **AI Coach**: analyzes daily usage, detects patterns (burnout risk, schedule drift), and generates blocking-plan recommendations you apply with one click. The only shipped AI that touches the *rules* rather than one unlock |
 | **Opal** | explicitly states it is *not* AI-driven |
 | **Freedom / Cold Turkey** | zero AI |
 
-**Still nobody rewrites the durable config.** "I'm on vacation next week, relax my
-mornings, my nights got bad" changing the *document*, across every device, is
-unclaimed as of July 2026. The doorman fights you at the door; the tailor refits
-the suit. That remains first-of-kind, and after cross-device sync it is the most
-defensible thing in this repo.
+**The narrow claim that survives:** nobody ships a *conversational* coach that
+edits a *portable, user-owned* config under an explicit constitution, across
+devices. FocusMe's coach is the closest prior art: real analysis, one-click plan
+edits, but one-way (report -> suggestion), desktop-scoped, and the plans live
+inside its closed format. The doorman fights you at the door; FocusMe hands you
+tailoring suggestions; ours is the tailor you talk to, and you keep the suit
+pattern. Say it that precisely or not at all.
 
 ## Location-based blocking
 
@@ -262,8 +275,11 @@ is the frame our first sentence has to win.
    the most faithful expression of principle #1, sustainable beats radical. A user
    who keeps Instagram DMs but loses the Reels tab never has the "one bad moment"
    that makes them uninstall. **Strongly consider stealing this.**
-4. **ScreenZen is 100% free on both mobile OSes**, with no premium tier. "Free" is
-   not a differentiator against it. Only "free *and* on your desktop *and* open".
+4. **ScreenZen is 100% free on iOS, Android, macOS and Windows**, with no premium
+   tier. It already crosses the phone/desktop line for $0. "Free" and "free +
+   cross-device" are both dead as differentiators against it; what it lacks is
+   open source, a synced user-owned config, and hard blocking (it pauses, we
+   block). Watch it closely.
 5. **Pluckeye already built delay-based friction**, which is principle #2. Not a
    commercial threat, but it means "smart friction" is not novel and should not be
    pitched as though it were.
@@ -278,8 +294,13 @@ is the frame our first sentence has to win.
 **What is defensibly ours, in order:**
 
 1. One config, phone **and** desktop, free and open source. Nobody else. Not one.
-2. The coach that rewrites the config, not the doorman that argues about a door.
-3. The CLI and agent surface.
+   (ScreenZen is free on all four platforms, but closed and without a synced,
+   user-owned config.)
+2. The conversational coach that rewrites your portable config. FocusMe's AI
+   Coach is prior art for AI-edited rules; the conversation, the constitution,
+   and the ownership are still ours alone.
+3. The agent surface: an open contract that agents and terminals can edit.
+   (FocusMe has a CLI remote control; claiming "only CLI" is now false.)
 4. Self-hostable hub, offline-first, no server required to block or unblock (a
    direct shot at Brick, which needs internet to unbrick).
 5. Generous emergency unlocks, said out loud, against Brick's 5-per-lifetime
