@@ -1,0 +1,21 @@
+{
+  "name": "@yawningface/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "yawningface for Chrome: a client of the same blocking contract as the desktop app, the CLI and the phone.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@yawningface/schema": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}

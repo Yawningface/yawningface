@@ -6,7 +6,8 @@
   "license": "MIT",
   "workspaces": [
     "packages/*",
-    "apps/cli"
+    "apps/cli",
+    "apps/extension"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

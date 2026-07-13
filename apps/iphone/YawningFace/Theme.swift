@@ -2,11 +2,19 @@ import SwiftUI
 import UIKit
 
 // MARK: - Colors
+//
+// One palette across the whole ecosystem: the website, the desktop app, the
+// Chrome extension and this. Paper, ink, one yellow. Changing these four
+// values is the only thing needed to keep the phone in step.
 
-let cardColor = Color(hex: "#1F2937")
-let backgroundColor = Color(hex: "#111926")
-let iconColor = Color(hex: "#FACC16")
-let normalTextColor = Color.white
+/// White sheets on paper, with a hairline. Same as the desktop app's cards.
+let cardColor = Color(hex: "#FFFFFF")
+let backgroundColor = Color(hex: "#FAF9F4")
+let iconColor = Color(hex: "#F0DB0C")
+let normalTextColor = Color(hex: "#12120F")
+
+/// Hairline rule, for card borders on paper.
+let ruleColor = Color(hex: "#12120F").opacity(0.14)
 
 extension Color {
     init(hex: String) {
@@ -24,17 +32,23 @@ extension Color {
 
 // MARK: - Button Styles
 
+/// Ink button, yellow label: the same primary the desktop app and the
+/// extension use.
 struct PrimaryButtonStyle: ButtonStyle {
     var enabled: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .fontWeight(.bold)
+            .fontWeight(.semibold)
             .frame(maxWidth: .infinity, minHeight: 50)
-            .background(enabled ? Color.white : cardColor)
-            .foregroundColor(enabled ? Color.black : Color.white.opacity(0.5))
+            .background(enabled ? normalTextColor : cardColor)
+            .foregroundColor(enabled ? iconColor : normalTextColor.opacity(0.4))
             .cornerRadius(25)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: 25)
+                    .stroke(enabled ? Color.clear : ruleColor, lineWidth: 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
@@ -47,7 +61,8 @@ struct CardButtonStyle: ButtonStyle {
             .background(cardColor)
             .foregroundColor(normalTextColor)
             .cornerRadius(8)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(ruleColor, lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+    <title>yawningface - sites and schedules</title>
+  </head>
+  <body>
+    <main class="page">
+      <div>
+        <h1>Sites and schedules</h1>
+        <p class="muted">
+          The same blocklist document the desktop app, the phone and the yf
+          command line use. Export it here, import it there, and every device
+          blocks the same things.
+        </p>
+      </div>
+
+      <section class="card">
+        <div class="row">
+          <h2>Schedules</h2>
+          <button class="pill" id="new">+ New</button>
+        </div>
+        <div id="lists"></div>
+        <div id="editor"></div>
+      </section>
+
+      <section class="card">
+        <h2>The working session list</h2>
+        <p class="muted">
+          What the one-click session blocks. Same defaults as the desktop app.
+        </p>
+        <p class="small-text" id="defaults"></p>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <div>
+            <h2>Share this config</h2>
+            <p class="muted">
+              One JSON file you own, in the canonical schema.
+            </p>
+          </div>
+          <div class="actions">
+            <button class="pill" id="export">Export</button>
+            <button class="pill" id="import">Import</button>
+          </div>
+        </div>
+        <p class="small-text" id="status"></p>
+        <input type="file" id="file" accept="application/json" hidden />
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+    <title>yawningface</title>
+  </head>
+  <body>
+    <main class="popup">
+      <div class="state">
+        <div class="state-emoji" id="emoji">😴</div>
+        <div class="state-line" id="state">Nothing blocked right now.</div>
+        <div class="small-text" id="detail"></div>
+      </div>
+
+      <div id="picker" class="segmented">
+        <button data-min="30">30 min</button>
+        <button data-min="60" class="on">1 h</button>
+        <button data-min="120">2 h</button>
+        <button data-min="0">No limit</button>
+      </div>
+
+      <button class="primary" id="toggle">Start working session</button>
+
+      <div class="small-text" id="hint">
+        Feeds off in this browser - X, Instagram, TikTok, YouTube, Reddit and
+        friends.
+      </div>
+
+      <div class="foot">
+        <span class="small-text" id="today"></span>
+        <button class="link" id="options">Sites and schedules</button>
+      </div>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

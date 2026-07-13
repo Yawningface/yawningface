@@ -29,16 +29,43 @@ Simulator.** The simulator loop covers UI, onboarding, sync, the coach screen
 blocking engine behind a protocol with a simulator mock so the loop never
 stalls on it.
 
-## Facts for this specific setup (fill on first contact, then update this file)
+## Facts for this specific setup (confirmed 2026-07-13, live)
 
 | Fact | Value |
 | --- | --- |
-| Mini Tailscale hostname | `<TODO: tailscale status on either machine>` |
-| macOS user on the mini | `<TODO>` |
-| SSH alias | `mini` (via ~/.ssh/config, below) |
-| Xcode version on mini | `<TODO: ssh mini "xcodebuild -version">` |
-| Scheme / bundle id | `<TODO: xcodebuild -list>` - expect scheme `YawningFace`, bundle id from build settings |
-| Chosen simulator | `<TODO: xcrun simctl list devices available>` - prefer a recent iPhone |
+| How to reach it | **LAN, not Tailscale.** Tailscale is not installed on the mini; the LAN is faster anyway. |
+| Hostname / IP | `xubans-mac-mini.local` -> `192.168.1.134` (mDNS resolves from Windows) |
+| macOS user | `xubanceccon` |
+| SSH alias | `ssh mini` (mDNS) or `ssh mini-lan` (hardcoded IP), both in ~/.ssh/config |
+| macOS / hardware | 26.3.1, Apple silicon (arm64) |
+| Xcode | 26.6 (17F113), at /Applications/Xcode.app, already xcode-select'ed |
+| iOS runtime | iOS 26.5 Simulator, via `xcodebuild -downloadPlatform iOS` (no sudo needed) |
+| Targets (no shared schemes!) | `YawningFace`, `DeviceActivityMonitorExtension`. Use `-target`, not `-scheme`. |
+| Source on the mini | `~/yawningface` |
+| sudo | **needs a password.** Nothing that requires root can be automated from here. |
+
+## Getting code onto the mini
+
+The repo is **private and deploy keys are disabled org-wide**, and the mini's
+key is not on GitHub. Do not fight this: push the source over SSH instead.
+
+```bash
+# from the repo root on Windows
+tar czf - apps/iphone | ssh mini "mkdir -p ~/yawningface && tar xzf - -C ~/yawningface"
+```
+
+## Building
+
+```bash
+ssh mini "cd ~/yawningface/apps/iphone && xcodebuild \
+  -project YawningFace.xcodeproj -target YawningFace \
+  -sdk iphonesimulator -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E 'error:|BUILD'"
+```
+
+Disk is the recurring hazard on this machine: Xcode plus one runtime is ~35 GB
+and the mini runs Docker (boringtube-2, xupanel, blogbot, portainer). Check
+`df -h /` before any big download.
 
 ## One-time setup
 
