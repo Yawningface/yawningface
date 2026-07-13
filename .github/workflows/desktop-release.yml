@@ -64,7 +64,7 @@ jobs:
           projectPath: apps/desktop
           # Empty tagName on manual runs = build only, no release created.
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: 'YawningFace Desktop v__VERSION__'
+          releaseName: 'yawningface v__VERSION__'
           # Draft while platforms upload; the publish job below flips it live
           # only once EVERY platform's installers are attached. Publishing here
           # directly would expose a Mac-only release for the ~5 min Windows

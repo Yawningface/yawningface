@@ -1,5 +1,27 @@
-/* YawningFace design language - docs/STYLE_GUIDE.md, Apple-grade execution.
-   Calm, dark, one yellow accent, one emoji doing the emotional work. */
+/* yawningface design language - same system as yawningface-website:
+   paper, ink, one yellow. Mono body, serif display, hairline rules,
+   4px corners, no shadows. */
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./fonts/GeistMono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("./fonts/Geist.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("./fonts/InstrumentSerif.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 
 * {
   margin: 0;
@@ -8,21 +30,24 @@
 }
 
 :root {
-  --bg: #111926;
-  --card: #1c2534;
-  --card-2: #2a3648;
-  /* solid grays (not alpha whites): deterministic on any surface */
-  --text: #ffffff;
-  --text-70: #bac1cc;
-  --text-60: #a4adba;
-  --text-50: #8d97a6;
-  --text-30: #5c6575;
-  --accent: #facc16;
-  --danger: #f08a8a;
-  --hairline: rgba(255, 255, 255, 0.055);
-  --radius-card: 14px;
-  --radius-pill: 25px;
+  --paper: #faf9f4;
+  --yellow: #f0db0c;
+  --ink: #12120f;
+  --ink-soft: rgba(18, 18, 15, 0.76);
+  --ink-faint: rgba(18, 18, 15, 0.48);
+  --rule: rgba(18, 18, 15, 0.32);
+  --rule-faint: rgba(18, 18, 15, 0.14);
+  --danger: #a03414;
+  --radius: 4px;
+  --mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sans: "Geist", system-ui, sans-serif;
+  --display: "Instrument Serif", Georgia, serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--yellow);
 }
 
 html,
@@ -32,29 +57,24 @@ body,
 }
 
 body {
-  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system,
-    "SF Pro Text", system-ui, sans-serif;
-  /* ambient light from above - not a flat void */
-  background: radial-gradient(
-      120% 55% at 50% -18%,
-      #1a2434 0%,
-      var(--bg) 60%
-    )
-    var(--bg);
-  color: var(--text);
+  font-family: var(--mono);
+  background: var(--paper);
+  color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--card-2);
-  border-radius: 4px;
+  background: var(--rule-faint);
+  border-radius: 5px;
+  border: 3px solid var(--paper);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -66,62 +86,42 @@ body {
   height: 100%;
 }
 
-/* ---- top bar: quiet, no borders ---- */
+/* ---- top bar: quiet, hairline under it ---- */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px 6px;
-}
-
-.brand {
-  font-size: 13px;
-  color: var(--text-60);
-  letter-spacing: 0.1px;
-}
-
-.brand b {
-  color: var(--text-70);
-  font-weight: 600;
-}
-
-.brand-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  margin-right: 8px;
-  vertical-align: 1px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--rule-faint);
 }
 
 .panel {
   flex: 1;
-  padding: 6px 20px 16px;
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 20px 28px 40px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   overflow-y: auto;
 }
 
-/* ---- the hero: state lives in one big emoji ---- */
+/* ---- the hero: one emoji, one serif line ---- */
 
 .hero {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 8px 0;
-  min-height: 122px;
+  gap: 10px;
+  padding: 30px 0 22px;
 }
 
 .hero-emoji {
-  font-size: 74px;
+  font-size: 64px;
   line-height: 1.15;
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
   animation: hero-pop 260ms var(--ease);
 }
 
@@ -137,22 +137,30 @@ body {
 }
 
 .hero-line {
-  font-size: 14px;
-  color: var(--text-60);
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--ink);
   text-align: center;
+  max-width: 24ch;
+  text-wrap: balance;
 }
 
 .hero-line b {
-  color: var(--text);
-  font-weight: 600;
+  font-weight: 400;
+  border-bottom: 3px solid var(--yellow);
 }
 
 /* ---- typography ---- */
 
 h2 {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 b {
@@ -160,108 +168,110 @@ b {
   font-weight: 600;
 }
 
+/* card headers read as mono micro-labels, like the site */
+.card > b,
+.card .row > b {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .muted {
-  color: var(--text-60);
-  font-size: 13px;
-  line-height: 1.45;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 .error {
   color: var(--danger);
-  font-size: 13px;
+  font-size: 12.5px;
   overflow-wrap: anywhere;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 .small-text {
-  font-size: 12px;
-  color: var(--text-50);
-  line-height: 1.45;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.6;
 }
 
-/* ---- cards: elevated material with a hairline, not flat web boxes ---- */
+/* ---- cards: white sheets with an ink hairline ---- */
 
 .card {
-  background: var(--card);
-  border-radius: var(--radius-card);
-  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  box-shadow:
-    inset 0 0 0 1px var(--hairline),
-    0 8px 24px rgba(0, 0, 0, 0.18);
+  gap: 8px;
 }
 
-.card b {
-  font-size: 14px;
-}
-
-/* The one-time permission ask is the only loud thing on the screen. */
+/* The one-time permission ask is the only yellow thing on the screen. */
 .card.warn {
-  background: linear-gradient(180deg, #ffd83d, #f3c50e);
-  color: #14181f;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
-    0 8px 24px rgba(243, 197, 14, 0.12);
+  background: var(--yellow);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
-.card.warn b {
-  color: #14181f;
-  font-size: 15px;
+.card.warn > b {
+  color: var(--ink);
 }
 
 .card.warn .muted {
-  color: rgba(20, 24, 31, 0.72);
+  color: rgba(18, 18, 15, 0.72);
 }
 
 .card.warn .error {
-  color: #7c2412; /* dark red - readable on yellow, unlike the pink default */
+  color: #7c2412;
 }
 
 .cta-dark {
-  background: #151c28;
-  color: var(--accent);
+  background: var(--ink);
+  color: var(--yellow);
   font-weight: 600;
-  border-radius: 20px;
-  padding: 11px 20px;
+  border-radius: var(--radius);
+  padding: 12px 20px;
   width: 100%;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 .row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 14px;
+  font-size: 13px;
   gap: 12px;
 }
 
 .row .muted {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
-/* ---- buttons ---- */
+/* ---- buttons: bordered, sharp, mono ---- */
 
 button {
   font: inherit;
+  font-family: var(--mono);
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius);
   padding: 10px 16px;
   cursor: default;
   transition:
-    transform 180ms var(--ease),
     opacity 180ms var(--ease),
     background-color 180ms var(--ease),
-    color 180ms var(--ease);
+    color 180ms var(--ease),
+    border-color 180ms var(--ease);
 }
 
 button:active:not(:disabled) {
-  transform: scale(0.97);
+  opacity: 0.7;
 }
 
 button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -270,95 +280,96 @@ button:disabled {
 }
 
 .primary {
-  background: var(--text);
-  color: #000;
+  background: var(--ink);
+  color: var(--yellow);
   font-weight: 600;
-  border-radius: var(--radius-pill);
-  min-height: 50px;
+  border-radius: var(--radius);
+  min-height: 46px;
   padding: 12px 24px;
 }
 
 .primary:hover:not(:disabled) {
-  background: #eceef2;
+  opacity: 0.85;
 }
 
 .primary.big {
   width: 100%;
-  font-size: 15px;
+  font-size: 13.5px;
 }
 
 .ghost {
   background: transparent;
-  color: var(--text-60);
+  color: var(--ink-soft);
   padding: 8px 12px;
 }
 
 .ghost:hover {
-  color: var(--text);
+  color: var(--ink);
 }
 
 .ghost.pill {
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 999px;
-  padding: 9px 22px;
-  font-size: 13px;
-  color: var(--text-70);
+  background: #ffffff;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .ghost.pill:hover {
-  background: rgba(255, 255, 255, 0.11);
-  color: var(--text);
+  opacity: 0.8;
 }
 
 .gear {
-  color: var(--text-50);
+  color: var(--ink-faint);
   padding: 6px;
   display: inline-flex;
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 .gear:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  background: rgba(18, 18, 15, 0.05);
 }
 
 .small {
   padding: 7px 12px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* ---- session card ---- */
 
 .session-card {
-  background: var(--card);
-  border-radius: var(--radius-card);
-  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  padding: 22px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   text-align: center;
-  box-shadow:
-    inset 0 0 0 1px var(--hairline),
-    0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .session-title {
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
-/* ---- segmented duration picker (the iOS control, in brand yellow) ---- */
+/* ---- segmented duration picker ---- */
 
 .segmented {
   position: relative;
   display: flex;
   width: 100%;
-  background: rgba(0, 0, 0, 0.28);
-  border-radius: 10px;
+  background: var(--paper);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
   padding: 3px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .segmented-thumb {
@@ -367,30 +378,29 @@ button:disabled {
   bottom: 3px;
   left: 3px;
   width: calc((100% - 6px) / 4);
-  background: var(--accent);
-  border-radius: 8px;
+  background: var(--yellow);
+  border-radius: 2px;
   transition: transform 220ms var(--ease);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 .segmented-option {
   position: relative;
   flex: 1;
   background: transparent;
-  color: var(--text-60);
-  font-size: 12.5px;
+  color: var(--ink-faint);
+  font-size: 12px;
   font-weight: 600;
   padding: 7px 2px;
-  border-radius: 8px;
+  border-radius: 2px;
   white-space: nowrap;
 }
 
 .segmented-option.selected {
-  color: #000;
+  color: var(--ink);
 }
 
 .segmented-option:active:not(:disabled) {
-  transform: none;
+  opacity: 1;
 }
 
 /* ---- scheduled sessions ---- */
@@ -419,8 +429,8 @@ button:disabled {
   flex-direction: column;
   gap: 10px;
   margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+  border-top: 1px solid var(--rule-faint);
 }
 
 .day-picker {
@@ -431,16 +441,18 @@ button:disabled {
 .day {
   flex: 1;
   padding: 7px 0;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--text-50);
-  font-size: 12.5px;
+  border-radius: var(--radius);
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  color: var(--ink-faint);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .day.on {
-  background: var(--accent);
-  color: #000;
+  background: var(--yellow);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .time-range {
@@ -455,35 +467,37 @@ button:disabled {
 
 input[type="time"] {
   font: inherit;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  font-family: var(--mono);
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
   padding: 8px 12px;
-  color: var(--text);
+  color: var(--ink);
   outline: none;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 input[type="time"]:focus {
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 textarea {
   font: inherit;
-  font-size: 13px;
+  font-family: var(--mono);
+  font-size: 12.5px;
   width: 100%;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
   padding: 10px 12px;
-  color: var(--text);
+  color: var(--ink);
   outline: none;
   resize: vertical;
   margin-top: 8px;
 }
 
 textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 /* ---- companions (extension + CLI) ---- */
@@ -499,7 +513,7 @@ textarea:focus {
 
 .row.companion span {
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 12.5px;
 }
 
 .row.companion .small-text {
@@ -513,18 +527,18 @@ textarea:focus {
 /* ---- device-code display ---- */
 
 .code {
-  font-family: ui-monospace, "Cascadia Mono", "SF Mono", monospace;
-  font-size: 24px;
+  font-family: var(--mono);
+  font-size: 22px;
   letter-spacing: 4px;
-  background: var(--card-2);
-  border-radius: 10px;
+  background: var(--ink);
+  border-radius: var(--radius);
   padding: 12px 18px;
-  color: var(--accent);
+  color: var(--yellow);
   text-align: center;
 }
 
 .code.small-code {
-  font-size: 20px;
+  font-size: 18px;
   letter-spacing: 3px;
   padding: 10px 16px;
 }
@@ -535,38 +549,44 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-60);
+  font-size: 12.5px;
+  color: var(--ink-soft);
 }
 
 label.checkbox {
   flex-direction: row;
   align-items: center;
   gap: 9px;
-  color: var(--text);
-  font-size: 14px;
+  color: var(--ink);
+  font-size: 13px;
 }
 
 input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
+  accent-color: var(--ink);
+  width: 15px;
+  height: 15px;
 }
 
 input[type="text"],
 input:not([type]) {
   font: inherit;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  font-family: var(--mono);
+  background: #ffffff;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
   padding: 10px 12px;
-  color: var(--text);
+  color: var(--ink);
   outline: none;
   transition: border-color 180ms var(--ease);
 }
 
 input:focus {
-  border-color: var(--accent);
+  border-color: var(--ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-faint);
 }
 
 .actions {
@@ -577,8 +597,8 @@ input:focus {
 
 details summary {
   cursor: default;
-  font-size: 13px;
-  color: var(--text-50);
+  font-size: 12.5px;
+  color: var(--ink-faint);
   margin: 6px 0;
 }
 
@@ -593,7 +613,7 @@ details summary {
 
 .hint {
   text-align: center;
-  font-size: 11.5px;
-  color: var(--text-30);
-  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 4px;
 }

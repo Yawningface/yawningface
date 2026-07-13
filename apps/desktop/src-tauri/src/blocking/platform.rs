@@ -76,7 +76,7 @@ fn install_helper_macos() -> Result<(), String> {
     let spool_str = spool.to_string_lossy().to_string();
 
     let script = r##"#!/bin/bash
-# YawningFace Block - hosts applier. Runs as root via LaunchDaemon.
+# yawningface - hosts applier. Runs as root via LaunchDaemon.
 # Reads the user spool file, validates every domain, and rewrites only the
 # managed section of /etc/hosts. Entries always point to 0.0.0.0.
 SPOOL="$1"
@@ -189,7 +189,7 @@ fn install_helper_windows() -> Result<(), String> {
     let spool_str = spool.to_string_lossy().to_string();
 
     let applier = r#"param([string]$Spool)
-# YawningFace Block - hosts applier. Runs as SYSTEM via scheduled task.
+# yawningface - hosts applier. Runs as SYSTEM via scheduled task.
 $hostsPath = Join-Path $env:WINDIR 'System32\drivers\etc\hosts'
 $begin = '# >>> YAWNINGFACE BLOCK BEGIN >>> (managed section, do not edit)'
 $end = '# <<< YAWNINGFACE BLOCK END <<<'
