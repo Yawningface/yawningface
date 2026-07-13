@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  @font-face {
+    font-family: "Instrument Serif";
+    src: url("InstrumentSerif.woff2") format("woff2");
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 150px; height: 57px; overflow: hidden; }
+  body {
+    background: #f0db0c;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    position: relative;
+  }
+  /* The sirens crowd in from the left; the wordmark holds the right. */
+  .art {
+    position: absolute;
+    inset: 0;
+    background-image: url("art/sirens.webp");
+    background-size: cover;
+    background-position: 40% 30%;
+    opacity: 0.9;
+  }
+  .fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to left, #f0db0c 62%, rgba(240, 219, 12, 0) 96%);
+  }
+  .word {
+    position: relative;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 17px;
+    line-height: 1;
+    text-transform: uppercase;
+    color: #12120f;
+  }
+</style>
+</head>
+<body>
+  <div class="art"></div>
+  <div class="fade"></div>
+  <div class="word">yawningface</div>
+</body>
+</html>

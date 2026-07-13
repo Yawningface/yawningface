@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  @font-face {
+    font-family: "Instrument Serif";
+    src: url("InstrumentSerif.woff2") format("woff2");
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 164px; height: 314px; overflow: hidden; }
+  body {
+    background: #f0db0c;
+    position: relative;
+  }
+  /* Odysseus bound to the mast: the whole product in one picture. */
+  .art {
+    position: absolute;
+    inset: 0;
+    background-image: url("art/mast.webp");
+    background-size: 210%;
+    background-position: 32% 42%;
+    background-repeat: no-repeat;
+  }
+  .cap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 12px 12px;
+    background: linear-gradient(to top, #f0db0c 62%, rgba(240, 219, 12, 0));
+  }
+  .word {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 21px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    color: #12120f;
+  }
+  .sub {
+    margin-top: 5px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 8px;
+    line-height: 1.45;
+    color: rgba(18, 18, 15, 0.78);
+  }
+</style>
+</head>
+<body>
+  <div class="art"></div>
+  <div class="cap">
+    <div class="word">yawningface</div>
+    <div class="sub">The sites that eat your day, gone.</div>
+  </div>
+</body>
+</html>
