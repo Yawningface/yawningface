@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import Onboarding from "./Onboarding";
+import Insights from "./Insights";
 import { IS_DEV_BUILD } from "./build";
 import type {
   Blocklist,
@@ -13,10 +14,11 @@ import type {
   Settings,
 } from "./types";
 
-type View = "focus" | "schedules" | "connect" | "settings";
+type View = "focus" | "insights" | "schedules" | "connect" | "settings";
 
 const NAV: { id: View; label: string }[] = [
   { id: "focus", label: "Focus" },
+  { id: "insights", label: "Insights" },
   { id: "schedules", label: "Schedules" },
   { id: "connect", label: "Connect" },
   { id: "settings", label: "Settings" },
@@ -136,6 +138,7 @@ export default function App() {
         {view === "focus" && (
           <FocusView status={status} onChanged={refresh} />
         )}
+        {view === "insights" && <Insights />}
         {view === "schedules" && (
           <section className="page">
             <h2>Schedules</h2>

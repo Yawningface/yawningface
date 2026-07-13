@@ -9,6 +9,20 @@ export interface Settings {
   onboarded: boolean;
 }
 
+export interface DayStat {
+  focusSeconds: number;
+  sessions: number;
+  appsBlocked: number;
+}
+
+/** On-device history. Written by the engine, never uploaded. */
+export interface Stats {
+  days: Record<string, DayStat>;
+  blockedApps: Record<string, number>;
+  longestFocusSeconds: number;
+  currentFocusSeconds: number;
+}
+
 export type SetupStepState = "idle" | "running" | "done" | "failed";
 
 export interface SetupEvent {

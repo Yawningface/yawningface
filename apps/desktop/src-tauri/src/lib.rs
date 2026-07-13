@@ -3,6 +3,7 @@ pub mod blocking;
 pub mod schedule;
 pub mod settings;
 pub mod state;
+pub mod stats;
 pub mod sync;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -131,7 +132,16 @@ async fn start_session(app: AppHandle, minutes: Option<u64>) -> Result<EngineSta
         save_json(&sync::session_path(&app), &*session)?;
         sync::push_event(&state, "session_start", json!({ "minutes": minutes, "local": true }));
     }
+    sync::record_stats(&app, |s| s.record_session_start());
     sync_now(app).await
+}
+
+/// The on-device history behind the Insights page.
+#[tauri::command]
+fn get_stats(app: AppHandle) -> stats::Stats {
+    let state = app.state::<AppState>();
+    let stats = state.stats.lock().unwrap();
+    stats.clone()
 }
 
 #[tauri::command]
@@ -415,6 +425,7 @@ pub fn run() {
             stop_session,
             get_local_config,
             save_local_config,
+            get_stats,
             setup_hosts_helper,
             finish_onboarding
         ])
@@ -425,7 +436,13 @@ pub fn run() {
             let tokens_file: Tokens = load_json(&sync::tokens_path(&handle));
             let tokens = (!tokens_file.access_token.is_empty()).then_some(tokens_file);
             let local_session: LocalSession = load_json(&sync::session_path(&handle));
-            app.manage(AppState::new(settings.clone(), tokens, local_session));
+            let stats: stats::Stats = load_json(&sync::stats_path(&handle));
+            app.manage(AppState::new(
+                settings.clone(),
+                tokens,
+                local_session,
+                stats,
+            ));
 
             // Default-enable launch at login on first run.
             let _ = set_autostart(&handle, settings.launch_at_login);

@@ -59,7 +59,7 @@ pub async fn run_sync_loop(app: AppHandle) {
     let mut ticks: u64 = 0;
     loop {
         let result = tick(&app).await;
-        {
+        let blocking = {
             let state = app.state::<AppState>();
             let mut status = state.status.lock().unwrap();
             match result {
@@ -70,7 +70,8 @@ pub async fn run_sync_loop(app: AppHandle) {
                 Err(e) => status.last_sync_error = Some(e),
             }
             let _ = app.emit("yf://status", status.clone());
-        }
+            status.session_active || status.blocked_domains > 0 || status.blocked_apps > 0
+        };
         crate::update_tray(&app);
 
         ticks += 1;
@@ -78,8 +79,23 @@ pub async fn run_sync_loop(app: AppHandle) {
             let state = app.state::<AppState>();
             push_event(&state, "heartbeat", json!({}));
         }
+
+        // Focused time is measured, not estimated: one interval of blocking is
+        // credited only after that interval has actually elapsed.
         tokio::time::sleep(std::time::Duration::from_secs(SYNC_INTERVAL_SECS)).await;
+        record_stats(&app, |s| s.record_tick(blocking, SYNC_INTERVAL_SECS));
     }
+}
+
+/// Mutates the on-device history and persists it.
+pub fn record_stats(app: &AppHandle, f: impl FnOnce(&mut crate::stats::Stats)) {
+    let state = app.state::<AppState>();
+    let snapshot = {
+        let mut stats = state.stats.lock().unwrap();
+        f(&mut stats);
+        stats.clone()
+    };
+    let _ = save_json(&stats_path(app), &snapshot);
 }
 
 /// Fast loop: kill blocked apps.
@@ -93,9 +109,12 @@ pub async fn run_killer_loop(app: AppHandle) {
         };
         let killed = apps::kill_blocked(&mut system, &blocked);
         if !killed.is_empty() {
-            let state = app.state::<AppState>();
             for name in killed {
-                push_event(&state, "app_blocked", json!({ "app": name }));
+                {
+                    let state = app.state::<AppState>();
+                    push_event(&state, "app_blocked", json!({ "app": name.clone() }));
+                }
+                record_stats(&app, |s| s.record_app_blocked(&name));
             }
         }
         tokio::time::sleep(std::time::Duration::from_secs(KILL_INTERVAL_SECS)).await;
@@ -381,6 +400,11 @@ async fn flush_events(
 
 pub fn config_cache_path(app: &AppHandle) -> std::path::PathBuf {
     app_config_dir(app).join("config_cache.json")
+}
+
+/// On-device history for Insights. Never uploaded.
+pub fn stats_path(app: &AppHandle) -> std::path::PathBuf {
+    app_config_dir(app).join("stats.json")
 }
 
 /// Local scheduled sessions, in the canonical schema. Named yawningface.json
