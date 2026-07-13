@@ -1,265 +1,185 @@
 import SwiftUI
 import FamilyControls
 
+/// Task-flow onboarding: progress bar, permission with a dialog preview,
+/// then pick the first apps so the user leaves with something blocked.
+/// Buttons advance the flow; there is no free swiping.
 struct OnboardingView: View {
     @Binding var hasCompletedOnboarding: Bool
-    @State private var currentPage = 0
-    @State private var isRequestingAuth = false
+    @State private var step = 0
 
-    private let totalPages = 4
+    private let totalSteps = 4
 
     var body: some View {
         ZStack {
             backgroundColor.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Page content
-                TabView(selection: $currentPage) {
-                    WelcomePage()
-                        .tag(0)
-                    HowItWorksPage()
-                        .tag(1)
-                    PermissionsPage()
-                        .tag(2)
-                    GetStartedPage(
-                        isRequestingAuth: $isRequestingAuth,
-                        onComplete: completeOnboarding
-                    )
-                        .tag(3)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: currentPage)
+                OnboardingProgressBar(progress: Double(step + 1) / Double(totalSteps))
+                    .padding(.horizontal, 60)
+                    .padding(.top, 24)
 
-                // Bottom section
-                VStack(spacing: 20) {
-                    // Page indicators
-                    HStack(spacing: 8) {
-                        ForEach(0..<totalPages, id: \.self) { index in
-                            Circle()
-                                .fill(index == currentPage ? iconColor : cardColor)
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-
-                    // Navigation button
-                    if currentPage < totalPages - 1 {
-                        Button {
-                            withAnimation {
-                                currentPage += 1
-                            }
-                        } label: {
-                            Text(currentPage == 0 ? "Get Started" : "Continue")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(12)
-                        }
-                        .padding(.horizontal, 40)
-                    }
-
-                    // Skip button (not on last page)
-                    if currentPage < totalPages - 1 {
-                        Button {
-                            withAnimation {
-                                currentPage = totalPages - 1
-                            }
-                        } label: {
-                            Text("Skip")
-                                .font(.subheadline)
-                                .foregroundColor(normalTextColor.opacity(0.5))
-                        }
+                Group {
+                    switch step {
+                    case 0:
+                        WelcomeStep(onContinue: advance)
+                    case 1:
+                        AllowScreenTimeStep(onContinue: advance)
+                    case 2:
+                        PickAppsStep(onContinue: advance)
+                    default:
+                        ReadyStep(onComplete: { hasCompletedOnboarding = true })
                     }
                 }
-                .padding(.bottom, 50)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                        removal: .move(edge: .leading).combined(with: .opacity)))
+                .id(step)
             }
+            .animation(.easeInOut(duration: 0.3), value: step)
         }
     }
 
-    private func completeOnboarding() {
-        hasCompletedOnboarding = true
+    private func advance() {
+        withAnimation { step += 1 }
     }
 }
 
-// MARK: - Page 1: Welcome
+struct OnboardingProgressBar: View {
+    let progress: Double
 
-struct WelcomePage: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(cardColor)
+                Capsule()
+                    .fill(iconColor)
+                    .frame(width: geo.size.width * progress)
+                    .animation(.easeInOut(duration: 0.3), value: progress)
+            }
+        }
+        .frame(height: 6)
+    }
+}
+
+// MARK: - Step 1: Welcome
+
+private struct WelcomeStep: View {
+    let onContinue: () -> Void
+
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            // App icon placeholder
-            ZStack {
-                Circle()
-                    .fill(cardColor)
-                    .frame(width: 120, height: 120)
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 50))
-                    .foregroundColor(iconColor)
-            }
+            Text("😴")
+                .font(.system(size: 80))
 
             VStack(spacing: 12) {
-                Text("YawningFace")
-                    .font(.system(size: 36, weight: .bold))
+                Text("yawningface")
+                    .font(.system(size: 34, weight: .bold))
                     .foregroundColor(normalTextColor)
 
-                Text("Take back your focus")
+                Text("The apps that eat your day, gone.")
                     .font(.title3)
                     .foregroundColor(normalTextColor.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
             }
 
-            Text("Block distracting apps during the times that matter most to you.")
-                .font(.body)
-                .foregroundColor(normalTextColor.opacity(0.6))
+            Text("Two minutes of setup. No account, nothing leaves your phone.")
+                .font(.subheadline)
+                .foregroundColor(normalTextColor.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Spacer()
-            Spacer()
+
+            Button("Get started", action: onContinue)
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
         }
     }
 }
 
-// MARK: - Page 2: How It Works
+// MARK: - Step 2: Screen Time permission, with a preview of Apple's dialog
 
-struct HowItWorksPage: View {
-    var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
+private struct AllowScreenTimeStep: View {
+    let onContinue: () -> Void
 
-            Text("How it works")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(normalTextColor)
-
-            VStack(alignment: .leading, spacing: 24) {
-                StepRow(number: "1", icon: "app.badge", title: "Choose apps", description: "Select the apps you want to block")
-                StepRow(number: "2", icon: "clock", title: "Set schedule", description: "Pick the times you want to focus")
-                StepRow(number: "3", icon: "shield.fill", title: "Stay focused", description: "We'll block apps during your schedule")
-            }
-            .padding(.horizontal, 32)
-
-            Spacer()
-            Spacer()
-        }
-    }
-}
-
-struct StepRow: View {
-    let number: String
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(iconColor)
-                    .frame(width: 44, height: 44)
-                Text(number)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.black)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(normalTextColor)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(normalTextColor.opacity(0.6))
-            }
-
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Page 3: Permissions
-
-struct PermissionsPage: View {
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(cardColor)
-                    .frame(width: 100, height: 100)
-                Image(systemName: "lock.shield")
-                    .font(.system(size: 44))
-                    .foregroundColor(iconColor)
-            }
-
-            VStack(spacing: 12) {
-                Text("Screen Time Access")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(normalTextColor)
-
-                Text("To block apps, we need permission to use Screen Time controls.")
-                    .font(.body)
-                    .foregroundColor(normalTextColor.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-
-            // Privacy note
-            VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Your data stays on your device")
-                        .font(.subheadline)
-                        .foregroundColor(normalTextColor.opacity(0.7))
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("We never see which apps you use")
-                        .font(.subheadline)
-                        .foregroundColor(normalTextColor.opacity(0.7))
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("You can revoke access anytime")
-                        .font(.subheadline)
-                        .foregroundColor(normalTextColor.opacity(0.7))
-                }
-            }
-            .padding(.top, 16)
-
-            Spacer()
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Page 4: Get Started
-
-struct GetStartedPage: View {
-    @Binding var isRequestingAuth: Bool
-    let onComplete: () -> Void
+    @State private var isRequesting = false
+    @State private var denied = false
+    @State private var alreadyApproved = false
 
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            Text("🚀")
-                .font(.system(size: 80))
-
             VStack(spacing: 12) {
-                Text("Ready to focus?")
+                Text("First, allow Screen Time")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(normalTextColor)
+                    .multilineTextAlignment(.center)
 
-                Text("Grant permission and start blocking distractions today.")
+                Text("Blocking apps is an iOS permission. You will see this dialog: tap Continue on it.")
                     .font(.body)
+                    .foregroundColor(normalTextColor.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            // Preview of the real iOS sheet, so the real one is expected
+            // rather than alarming. The arrow marks the button to tap.
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    Text("\u{201C}yawningface\u{201D} Would Like to Access Screen Time")
+                        .font(.headline)
+                        .foregroundColor(normalTextColor)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text("Providing \u{201C}yawningface\u{201D} access to Screen Time may allow it to see your activity data, restrict content, and limit the usage of apps and websites.")
+                        .font(.subheadline)
+                        .foregroundColor(normalTextColor.opacity(0.6))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(20)
+
+                HStack(spacing: 12) {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundColor(normalTextColor)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(22)
+                    Text("Don't Allow")
+                        .font(.body)
+                        .foregroundColor(normalTextColor.opacity(0.6))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Color.white.opacity(0.05))
+                        .cornerRadius(22)
+                }
+                .padding([.horizontal, .bottom], 16)
+            }
+            .background(cardColor)
+            .cornerRadius(20)
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(iconColor, lineWidth: 2))
+            .padding(.horizontal, 32)
+
+            HStack {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(iconColor)
+                    .frame(maxWidth: .infinity)
+                Spacer()
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 48)
+
+            if denied {
+                Text("iOS said no. Try again, or allow it later from Settings.")
+                    .font(.subheadline)
                     .foregroundColor(normalTextColor.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
@@ -267,58 +187,185 @@ struct GetStartedPage: View {
 
             Spacer()
 
-            // Main CTA
-            Button {
-                requestAuthorization()
-            } label: {
-                HStack {
-                    if isRequestingAuth {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .black))
+            VStack(spacing: 12) {
+                Button {
+                    requestAuthorization()
+                } label: {
+                    if isRequesting {
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
                     } else {
-                        Text("Enable Screen Time")
+                        Text(alreadyApproved ? "Screen Time allowed ✓" : (denied ? "Try again" : "Allow Screen Time"))
                     }
                 }
-                .font(.headline)
-                .foregroundColor(.black)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(iconColor)
-                .cornerRadius(12)
-            }
-            .disabled(isRequestingAuth)
-            .padding(.horizontal, 40)
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(isRequesting)
 
-            // Skip option
-            Button {
-                onComplete()
-            } label: {
-                Text("Skip for now")
+                Button("Skip for now") { onContinue() }
                     .font(.subheadline)
                     .foregroundColor(normalTextColor.opacity(0.5))
             }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 24)
 
-            Spacer()
+            Text("Your data stays on this iPhone. Apple's design means we never see what you do.")
+                .font(.caption)
+                .foregroundColor(normalTextColor.opacity(0.4))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 24)
+        }
+        .onAppear {
+            if AuthorizationCenter.shared.authorizationStatus == .approved {
+                alreadyApproved = true
+            }
         }
     }
 
     private func requestAuthorization() {
-        isRequestingAuth = true
+        if alreadyApproved {
+            onContinue()
+            return
+        }
+        isRequesting = true
         Task {
             do {
                 try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
                 await MainActor.run {
                     let approved = AuthorizationCenter.shared.authorizationStatus == .approved
                     UserDefaults.standard.set(approved, forKey: "authorized")
-                    isRequestingAuth = false
-                    onComplete()
+                    isRequesting = false
+                    if approved {
+                        Haptics.success()
+                        onContinue()
+                    } else {
+                        denied = true
+                    }
                 }
             } catch {
                 await MainActor.run {
-                    isRequestingAuth = false
-                    onComplete()
+                    isRequesting = false
+                    denied = true
                 }
             }
+        }
+    }
+}
+
+// MARK: - Step 3: pick the first apps
+
+private struct PickAppsStep: View {
+    let onContinue: () -> Void
+
+    @State private var selection = BlockerModel.selection
+
+    private var selectedCount: Int {
+        selection.applicationTokens.count
+            + selection.categoryTokens.count
+            + selection.webDomainTokens.count
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 12) {
+                Text("Start with your most distracting apps")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(normalTextColor)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                Text("Pick the ones that pull you in. You can change this anytime.")
+                    .font(.subheadline)
+                    .foregroundColor(normalTextColor.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            .padding(.top, 24)
+
+            FamilyActivityPicker(selection: $selection)
+                .background(cardColor)
+                .cornerRadius(16)
+                .padding(.horizontal, 16)
+
+            VStack(spacing: 12) {
+                Button(selectedCount == 0 ? "Pick at least one" : "Block \(selectedCount) selected") {
+                    BlockerModel.selection = selection
+                    Haptics.success()
+                    onContinue()
+                }
+                .buttonStyle(PrimaryButtonStyle(enabled: selectedCount > 0))
+                .disabled(selectedCount == 0)
+
+                Button("Skip for now") { onContinue() }
+                    .font(.subheadline)
+                    .foregroundColor(normalTextColor.opacity(0.5))
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+    }
+}
+
+// MARK: - Step 4: done, with the option to arm the default schedule
+
+private struct ReadyStep: View {
+    let onComplete: () -> Void
+
+    private var hasSelection: Bool {
+        let s = BlockerModel.selection
+        return !(s.applicationTokens.isEmpty && s.categoryTokens.isEmpty && s.webDomainTokens.isEmpty)
+    }
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text("😎")
+                .font(.system(size: 80))
+
+            VStack(spacing: 12) {
+                Text("That's the setup")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(normalTextColor)
+
+                if hasSelection {
+                    Text("Turn on the starter schedule (every weekday, 9 pm to 9 am) or set your own from the app.")
+                        .font(.body)
+                        .foregroundColor(normalTextColor.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                } else {
+                    Text("Pick apps and a schedule whenever you're ready.")
+                        .font(.body)
+                        .foregroundColor(normalTextColor.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+            }
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                if hasSelection {
+                    Button("Start blocking") {
+                        BlockerModel.isEnabled = true
+                        ScheduleManager.startSchedules()
+                        Haptics.success()
+                        onComplete()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+
+                    Button("I'll set my own schedule") { onComplete() }
+                        .font(.subheadline)
+                        .foregroundColor(normalTextColor.opacity(0.5))
+                } else {
+                    Button("Open yawningface", action: onComplete)
+                        .buttonStyle(PrimaryButtonStyle())
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 50)
         }
     }
 }
