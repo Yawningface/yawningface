@@ -1,6 +1,5 @@
-/* yawningface design language - same system as yawningface-website:
-   paper, ink, one yellow. Mono body, serif display, hairline rules,
-   4px corners, no shadows. */
+/* yawningface design language: the website's palette (paper, ink, one
+   yellow), but a plain UI face. The site is an artwork; this is a tool. */
 
 @font-face {
   font-family: "Geist Mono";
@@ -76,15 +75,18 @@ body,
   height: 100%;
 }
 
+/* This is a tool, not the poster. The site's serif and monospace are a voice
+   for reading; an app you operate every day wants a plain UI face. The
+   palette stays; the type gets out of the way. */
 body {
-  font-family: var(--mono);
+  font-family: var(--sans);
   background: var(--paper);
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -191,7 +193,7 @@ body {
   max-width: 52ch;
 }
 
-/* ---- the hero: one emoji, one serif line ---- */
+/* ---- the hero: one emoji, one line of state ---- */
 
 .hero {
   display: flex;
@@ -220,14 +222,13 @@ body {
 }
 
 .hero-line {
-  font-family: var(--display);
-  font-size: 26px;
-  line-height: 1.2;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
   color: var(--ink);
   text-align: center;
-  max-width: 24ch;
+  max-width: 28ch;
   text-wrap: balance;
 }
 
@@ -239,11 +240,9 @@ body {
 /* ---- typography ---- */
 
 h2 {
-  font-family: var(--display);
-  font-size: 28px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 
 b {
@@ -251,14 +250,13 @@ b {
   font-weight: 600;
 }
 
-/* card headers read as mono micro-labels, like the site */
+/* card headers: a plain bold label, not a typographic statement */
 .card > b,
 .card .row > b {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--ink);
 }
 
 .muted {
@@ -333,11 +331,11 @@ b {
   font-size: 12.5px;
 }
 
-/* ---- buttons: bordered, sharp, mono ---- */
+/* ---- buttons ---- */
 
 button {
   font: inherit;
-  font-family: var(--mono);
+  font-family: var(--sans);
   border: none;
   border-radius: var(--radius);
   padding: 10px 16px;
@@ -436,11 +434,9 @@ button:disabled {
 }
 
 .session-title {
-  font-family: var(--display);
-  font-size: 24px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 /* ---- segmented duration picker ---- */
@@ -550,7 +546,7 @@ button:disabled {
 
 input[type="time"] {
   font: inherit;
-  font-family: var(--mono);
+  font-family: var(--sans);
   background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
@@ -566,7 +562,7 @@ input[type="time"]:focus {
 
 textarea {
   font: inherit;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 12.5px;
   width: 100%;
   background: var(--surface);
@@ -610,7 +606,7 @@ textarea:focus {
 /* ---- device-code display ---- */
 
 .code {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 22px;
   letter-spacing: 4px;
   background: var(--ink);
@@ -653,7 +649,7 @@ input[type="checkbox"] {
 input[type="text"],
 input:not([type]) {
   font: inherit;
-  font-family: var(--mono);
+  font-family: var(--sans);
   background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
@@ -716,10 +712,11 @@ details summary {
   text-align: center;
 }
 
-/* The wordmark is the only oversized thing in the whole app. */
+/* The one place the brand face is still allowed: the first-run welcome, which
+   is a moment, not a screen you work in. */
 .wordmark {
   font-family: var(--display);
-  font-size: clamp(44px, 8vw, 76px);
+  font-size: clamp(44px, 8vw, 72px);
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.01em;
@@ -939,10 +936,12 @@ details summary {
 }
 
 .gauge-value {
-  font-family: var(--display);
-  font-size: 24px;
+  font-size: 21px;
+  font-weight: 650;
   line-height: 1;
+  letter-spacing: -0.01em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 14-day bars */
@@ -1049,17 +1048,16 @@ details summary {
 }
 
 .streak-count {
-  font-family: var(--display);
-  font-size: 26px;
+  font-size: 22px;
+  font-weight: 650;
   line-height: 1;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .streak-word {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--ink-soft);
 }
 

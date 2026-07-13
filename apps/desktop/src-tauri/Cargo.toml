@@ -1,6 +1,6 @@
 [package]
 name = "yfblock"
-version = "0.2.9"
+version = "0.2.10"
 description = "YawningFace Block - cross-device distraction blocker (desktop)"
 authors = ["Yawningface"]
 license = "MIT"
