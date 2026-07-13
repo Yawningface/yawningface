@@ -33,6 +33,19 @@ fn schtasks_exe() -> String {
     format!(r"{}\System32\schtasks.exe", windir())
 }
 
+/// A console child spawned from a GUI app pops a console window on screen.
+/// Every helper we run (schtasks, powershell, ipconfig) is a console program,
+/// so each one has to be launched with this or the user sees a black flash
+/// every time a session starts or stops.
+#[cfg(target_os = "windows")]
+pub(crate) fn quiet_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut cmd = std::process::Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
 pub fn helper_installed() -> bool {
     #[cfg(target_os = "macos")]
     {
@@ -40,7 +53,7 @@ pub fn helper_installed() -> bool {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new(schtasks_exe())
+        quiet_command(schtasks_exe())
             .args(["/Query", "/TN", "YawningFaceBlockHosts"])
             .output()
             .map(|o| o.status.success())
@@ -285,7 +298,7 @@ catch {{
         powershell_exe(),
         tmp_setup.to_string_lossy()
     );
-    let output = std::process::Command::new(powershell_exe())
+    let output = quiet_command(powershell_exe())
         .args(["-NoProfile", "-Command", &elevate])
         .output()
         .map_err(|e| format!("could not launch PowerShell for setup: {e}"))?;
@@ -330,7 +343,7 @@ fn setup_log_error() -> String {
 pub fn trigger_apply() {
     #[cfg(target_os = "windows")]
     {
-        let _ = std::process::Command::new(schtasks_exe())
+        let _ = quiet_command(schtasks_exe())
             .args(["/Run", "/TN", "YawningFaceBlockHosts"])
             .output();
     }

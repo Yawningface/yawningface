@@ -161,8 +161,9 @@ pub fn flush_dns() {
     #[cfg(target_os = "windows")]
     {
         // Absolute path: never depend on PATH containing System32.
+        // quiet_command, or this pops a console window on screen.
         let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
-        let _ = std::process::Command::new(format!(r"{windir}\System32\ipconfig.exe"))
+        let _ = super::platform::quiet_command(format!(r"{windir}\System32\ipconfig.exe"))
             .arg("/flushdns")
             .status();
     }

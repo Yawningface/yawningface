@@ -141,8 +141,13 @@ pub fn hostname() -> String {
     var.ok()
         .filter(|s| !s.is_empty())
         .or_else(|| {
-            std::process::Command::new("hostname")
-                .output()
+            #[cfg(target_os = "windows")]
+            let cmd = crate::blocking::platform::quiet_command("hostname");
+            #[cfg(not(target_os = "windows"))]
+            let cmd = std::process::Command::new("hostname");
+
+            let mut cmd = cmd;
+            cmd.output()
                 .ok()
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         })
