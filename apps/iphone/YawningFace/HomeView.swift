@@ -62,6 +62,10 @@ enum SessionManager {
 
         group?.set(true, forKey: "sessionActive")
         lengthMinutes = minutes ?? 0
+        History.begin(
+            plannedMinutes: minutes ?? 0,
+            appCount: selection.applicationTokens.count
+        )
 
         if let minutes, minutes >= minimumMinutes {
             let end = Date().addingTimeInterval(TimeInterval(minutes * 60))
@@ -81,12 +85,15 @@ enum SessionManager {
         }
     }
 
-    static func stop() {
+    /// `unblocked` is true only when the session was cut short from the shield.
+    /// Ending it from the app after it has done its job is not a cave-in.
+    static func stop(unblocked: Bool = false) {
         store.shield.applications = nil
         center.stopMonitoring([.session])
         group?.set(false, forKey: "sessionActive")
         group?.removeObject(forKey: "sessionUntil")
         group?.removeObject(forKey: "sessionMinutes")
+        History.end(unblocked: unblocked)
     }
 }
 

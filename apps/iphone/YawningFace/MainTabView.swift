@@ -11,6 +11,11 @@ struct MainTabView: View {
                     Label("Home", systemImage: "house.fill")
                 }
 
+            InsightsView()
+                .tabItem {
+                    Label("Insights", systemImage: "chart.bar.fill")
+                }
+
             BlocksView(isAuthorized: $isAuthorized)
                 .tabItem {
                     Label("Blocks", systemImage: "lock.shield.fill")
