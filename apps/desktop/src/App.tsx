@@ -12,7 +12,14 @@ import type {
   Settings,
 } from "./types";
 
-type View = "home" | "settings";
+type View = "focus" | "schedules" | "connect" | "settings";
+
+const NAV: { id: View; label: string }[] = [
+  { id: "focus", label: "Focus" },
+  { id: "schedules", label: "Schedules" },
+  { id: "connect", label: "Connect" },
+  { id: "settings", label: "Settings" },
+];
 
 const DURATIONS: { label: string; minutes: number | null }[] = [
   { label: "30 min", minutes: 30 },
@@ -53,28 +60,10 @@ function DurationPicker({
   );
 }
 
-function GearIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
 export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [status, setStatus] = useState<EngineStatus | null>(null);
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>("focus");
 
   const [localCfg, setLocalCfg] = useState<LocalConfigInfo | null>(null);
 
@@ -104,30 +93,68 @@ export default function App() {
     );
   }
 
+  const schedulesOn = status.activeLists.filter(
+    (l) => l !== "Working session",
+  ).length;
+
   return (
     <div className="shell">
-      {/* The window titlebar already says the app's name; don't repeat it. */}
-      <header className="topbar">
-        <span />
-        <button
-          className={view === "home" ? "ghost gear" : "ghost small"}
-          onClick={() => setView(view === "home" ? "settings" : "home")}
-        >
-          {view === "home" ? <GearIcon /> : "← Back"}
-        </button>
-      </header>
+      {/* A desktop app, not a phone: navigation on the left, one job per page. */}
+      <nav className="sidebar">
+        {NAV.map((item) => (
+          <button
+            key={item.id}
+            className={`nav-item ${view === item.id ? "active" : ""}`}
+            onClick={() => setView(item.id)}
+          >
+            {item.label}
+            {item.id === "schedules" && schedulesOn > 0 && (
+              <span className="nav-dot" aria-label="a schedule is on" />
+            )}
+          </button>
+        ))}
+        <div className="sidebar-foot small-text">
+          Closing the window keeps blocking active in the{" "}
+          {IS_MAC ? "menu bar" : "system tray"}.
+        </div>
+      </nav>
 
-      {view === "settings" ? (
-        <SettingsView
-          settings={settings}
-          onSaved={async () => {
-            await refresh();
-            setView("home");
-          }}
-        />
-      ) : (
-        <HomeView status={status} localCfg={localCfg} onChanged={refresh} />
-      )}
+      <div className="content">
+        {view === "focus" && (
+          <FocusView status={status} onChanged={refresh} />
+        )}
+        {view === "schedules" && (
+          <section className="page">
+            <h2>Schedules</h2>
+            <p className="page-note">
+              Sessions that start without you: weekday mornings, every evening,
+              whatever keeps you honest.
+            </p>
+            {localCfg && (
+              <ScheduledSessionsCard info={localCfg} onChanged={refresh} />
+            )}
+          </section>
+        )}
+        {view === "connect" && (
+          <section className="page">
+            <h2>Connect</h2>
+            <p className="page-note">
+              The same blocklist, everywhere you work.
+            </p>
+            <SyncCard status={status} onChanged={refresh} />
+            {localCfg && <CompanionsCard configPath={localCfg.path} />}
+          </section>
+        )}
+        {view === "settings" && (
+          <SettingsView
+            settings={settings}
+            onSaved={async () => {
+              await refresh();
+              setView("focus");
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -470,20 +497,17 @@ function Hero({ status }: { status: EngineStatus }) {
   );
 }
 
-function HomeView({
+/** The whole first page: what is happening, and the one button that changes
+    it. Everything else lives behind the sidebar. */
+function FocusView({
   status,
-  localCfg,
   onChanged,
 }: {
   status: EngineStatus;
-  localCfg: LocalConfigInfo | null;
   onChanged: () => void;
 }) {
   const [helperBusy, setHelperBusy] = useState(false);
   const [helperError, setHelperError] = useState<string | null>(null);
-  const [login, setLogin] = useState<DeviceCodeInfo | null>(null);
-  const [loginBusy, setLoginBusy] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
 
   const installHelper = async () => {
     setHelperBusy(true);
@@ -497,6 +521,43 @@ function HomeView({
       onChanged();
     }
   };
+
+  return (
+    <main className="focus-page">
+      <Hero status={status} />
+
+      {!status.hostsHelperInstalled && (
+        <section className="card warn">
+          <b>One-time setup</b>
+          <p className="muted">
+            Approve once. From then on, blocking works system-wide, silently.
+          </p>
+          <button
+            className="cta-dark"
+            disabled={helperBusy}
+            onClick={installHelper}
+          >
+            {helperBusy ? "Installing…" : "Enable website blocking"}
+          </button>
+          {helperError && <p className="error">{helperError}</p>}
+        </section>
+      )}
+
+      <SessionCard status={status} onChanged={() => onChanged()} />
+    </main>
+  );
+}
+
+function SyncCard({
+  status,
+  onChanged,
+}: {
+  status: EngineStatus;
+  onChanged: () => void;
+}) {
+  const [login, setLogin] = useState<DeviceCodeInfo | null>(null);
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const connect = async () => {
     setLoginBusy(true);
@@ -516,96 +577,59 @@ function HomeView({
     }
   };
 
+  if (status.authenticated) {
+    return (
+      <section className="card">
+        <div className="row">
+          <span className="muted">Account</span>
+          <span>{status.userName ?? status.userEmail ?? "connected"}</span>
+        </div>
+        {status.lastSyncError && <p className="error">{status.lastSyncError}</p>}
+        <button
+          className="ghost small"
+          onClick={async () => {
+            await invoke("logout");
+            onChanged();
+          }}
+        >
+          Sign out
+        </button>
+      </section>
+    );
+  }
+
+  if (!status.configured) {
+    return (
+      <section className="card">
+        <div className="row">
+          <b>Your phone</b>
+          <span className="small-text">coming soon</span>
+        </div>
+        <p className="muted small-text">
+          Sessions here work forever without an account, and without a server.
+        </p>
+      </section>
+    );
+  }
+
   return (
-    <main className="panel">
-      <Hero status={status} />
-
-      {!status.hostsHelperInstalled && (
-        <section className="card warn">
-          <b>One-time setup</b>
-          <p className="muted">
-            Approve once with your password. From then on, blocking works
-            system-wide, silently.
-          </p>
-          <button
-            className="cta-dark"
-            disabled={helperBusy}
-            onClick={installHelper}
-          >
-            {helperBusy ? "Installing…" : "Enable website blocking"}
-          </button>
-          {helperError && <p className="error">{helperError}</p>}
-        </section>
-      )}
-
-      <SessionCard status={status} onChanged={() => onChanged()} />
-
-      {localCfg && <ScheduledSessionsCard info={localCfg} onChanged={onChanged} />}
-
-      {status.authenticated ? (
-        <section className="card">
-          <div className="row">
-            <span className="muted">Account</span>
-            <span>{status.userName ?? status.userEmail ?? "connected"}</span>
-          </div>
-          <div className="row">
-            <span className="muted">Synced schedules</span>
-            <span>
-              {status.activeLists.filter((l) => l !== "Working session").length >
-              0
-                ? status.activeLists.filter((l) => l !== "Working session").join(", ")
-                : "none active now"}
-            </span>
-          </div>
-          {status.lastSyncError && <p className="error">{status.lastSyncError}</p>}
-          <button
-            className="ghost small"
-            onClick={async () => {
-              await invoke("logout");
-              onChanged();
-            }}
-          >
-            Sign out
-          </button>
-        </section>
-      ) : status.configured ? (
-        <section className="card">
-          <b>Sync across devices</b>
-          <p className="muted">
-            Optional: one schedule shared between this computer, your phone and
-            your friends' leaderboard.
-          </p>
-          {login ? (
-            <>
-              <div className="code small-code">{login.userCode}</div>
-              <p className="muted">Confirm the code in your browser…</p>
-            </>
-          ) : (
-            <button className="ghost" disabled={loginBusy} onClick={connect}>
-              {loginBusy ? "Waiting…" : "Connect account"}
-            </button>
-          )}
-          {loginError && <p className="error">{loginError}</p>}
-        </section>
-      ) : (
-        <section className="card">
-          <div className="row">
-            <b>Sync across devices</b>
-            <span className="small-text">coming soon</span>
-          </div>
-          <p className="muted small-text">
-            Offline sessions work forever, no account, no server.
-          </p>
-        </section>
-      )}
-
-      {localCfg && <CompanionsCard configPath={localCfg.path} />}
-
-      <p className="hint muted">
-        Closing this window keeps blocking active in the{" "}
-        {IS_MAC ? "menu bar" : "system tray"}.
+    <section className="card">
+      <b>Your phone</b>
+      <p className="muted">
+        Optional: one schedule shared between this computer and your phone.
       </p>
-    </main>
+      {login ? (
+        <>
+          <div className="code small-code">{login.userCode}</div>
+          <p className="muted">Confirm the code in your browser…</p>
+        </>
+      ) : (
+        <button className="ghost pill" disabled={loginBusy} onClick={connect}>
+          {loginBusy ? "Waiting…" : "Connect account"}
+        </button>
+      )}
+      {loginError && <p className="error">{loginError}</p>}
+    </section>
   );
 }
 
@@ -637,7 +661,7 @@ function SettingsView({
   };
 
   return (
-    <main className="panel">
+    <main className="page">
       <h2>Settings</h2>
       <label>
         Device name
