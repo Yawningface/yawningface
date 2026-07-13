@@ -19,6 +19,14 @@ export interface Session {
   until: number | null;
 }
 
+/** A domain let through on purpose, until a moment. */
+export interface Unblock {
+  domain: string;
+  /** Epoch ms when the reprieve ends. */
+  until: number;
+  at: number;
+}
+
 export interface Stored {
   config: BlockConfig;
   session: Session;
@@ -26,7 +34,17 @@ export interface Stored {
   days: Record<string, number>;
   /** Times a blocked page was refused, per domain. */
   attempts: Record<string, number>;
+  /**
+   * Every time you let yourself through, kept forever. The old extension
+   * counted these too, and it was right to: an escape hatch whose cost you
+   * never see is how a blocker quietly becomes decoration.
+   */
+  unblocks: Unblock[];
 }
+
+/** How long "Unblock anyway" buys you. Long enough to do the thing, short
+    enough that you have to mean it again in a few minutes. */
+export const UNBLOCK_MINUTES = 5;
 
 /** The list the working session blocks, matching apps/desktop's defaults. */
 export const DEFAULT_SESSION_DOMAINS = [
@@ -54,19 +72,33 @@ export async function load(): Promise<Stored> {
     "session",
     "days",
     "attempts",
+    "unblocks",
   ]);
   return {
     config: (raw.config as BlockConfig) ?? defaultConfig(),
     session: (raw.session as Session) ?? IDLE_SESSION,
     days: (raw.days as Record<string, number>) ?? {},
     attempts: (raw.attempts as Record<string, number>) ?? {},
+    unblocks: (raw.unblocks as Unblock[]) ?? [],
   };
 }
 
-/** Everything that should be blocked right now, from schedules + session. */
+/** Domains currently let through on purpose. */
+export function activeUnblocks(unblocks: Unblock[], now = Date.now()): string[] {
+  return unblocks.filter((u) => u.until > now).map((u) => u.domain);
+}
+
+export function unblocksToday(unblocks: Unblock[], now = new Date()): number {
+  const key = todayKey(now);
+  return unblocks.filter((u) => todayKey(new Date(u.at)) === key).length;
+}
+
+/** Everything that should be blocked right now, from schedules + session,
+    minus anything you have deliberately let through for a few minutes. */
 export function currentDomains(
   config: BlockConfig,
   session: Session,
+  unblocks: Unblock[] = [],
   now = new Date(),
 ): { domains: string[]; reasons: string[] } {
   const set = evaluate(config, "desktop", now);
@@ -77,6 +109,9 @@ export function currentDomains(
     reasons.push("Working session");
     for (const d of DEFAULT_SESSION_DOMAINS) domains.add(d);
   }
+
+  for (const d of activeUnblocks(unblocks, now.getTime())) domains.delete(d);
+
   return { domains: [...domains].filter(Boolean), reasons };
 }
 

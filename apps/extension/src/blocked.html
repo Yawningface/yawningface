@@ -23,6 +23,12 @@
         </p>
         <p class="muted" id="until"></p>
 
+        <div class="blocked-actions">
+          <button class="primary" id="keep">Keep me out</button>
+          <button class="link" id="unblock">Unblock anyway</button>
+        </div>
+        <p class="small-text" id="unblocked-note" hidden></p>
+
         <div class="blocked-meta">
           <div class="meta-item">
             <span class="meta-value" id="focused">0 m</span>
@@ -31,6 +37,10 @@
           <div class="meta-item">
             <span class="meta-value" id="attempts">1</span>
             <span class="small-text">times you came here</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-value" id="unblocks">0</span>
+            <span class="small-text">unblocks today</span>
           </div>
         </div>
       </div>

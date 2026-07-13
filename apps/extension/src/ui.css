@@ -365,6 +365,17 @@ input[type="checkbox"] {
   max-width: 44ch;
 }
 
+.blocked-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.blocked-actions .primary {
+  width: auto;
+  padding: 12px 28px;
+}
+
 .blocked-meta {
   display: flex;
   gap: 20px;

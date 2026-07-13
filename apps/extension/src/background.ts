@@ -6,14 +6,21 @@
  * every tick reloads from storage, and an alarm (not a timer) brings us back.
  */
 
-import { applyRules, currentDomains, load, sessionRunning, todayKey } from "./engine";
+import {
+  UNBLOCK_MINUTES,
+  applyRules,
+  currentDomains,
+  load,
+  sessionRunning,
+  todayKey,
+} from "./engine";
 
 const TICK = "yf-tick";
 /** One minute is the finest granularity chrome.alarms allows. */
 const TICK_MINUTES = 1;
 
 async function tick(): Promise<void> {
-  const { config, session, days } = await load();
+  const { config, session, days, unblocks } = await load();
   const now = new Date();
   const running = sessionRunning(session, now.getTime());
 
@@ -25,6 +32,7 @@ async function tick(): Promise<void> {
   const { domains, reasons } = currentDomains(
     config,
     running ? session : { active: false, until: null },
+    unblocks,
     now,
   );
 
@@ -79,6 +87,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       attempts[msg.domain] = (attempts[msg.domain] ?? 0) + 1;
       await chrome.storage.local.set({ attempts });
       sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  // "Unblock anyway": let this one domain through for a few minutes, and keep
+  // the receipt. Same mechanic as the shield on the phone.
+  if (msg?.type === "yf:unblock" && typeof msg.domain === "string") {
+    void (async () => {
+      const { unblocks } = await load();
+      unblocks.push({
+        domain: msg.domain,
+        at: Date.now(),
+        until: Date.now() + UNBLOCK_MINUTES * 60_000,
+      });
+      await chrome.storage.local.set({ unblocks: unblocks.slice(-500) });
+      await tick();
+      sendResponse({ ok: true, minutes: UNBLOCK_MINUTES });
     })();
     return true;
   }

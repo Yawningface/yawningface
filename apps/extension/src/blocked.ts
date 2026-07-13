@@ -1,4 +1,10 @@
-import { currentDomains, load, sessionRunning, todayKey } from "./engine";
+import {
+  currentDomains,
+  load,
+  sessionRunning,
+  todayKey,
+  unblocksToday,
+} from "./engine";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -11,7 +17,7 @@ function humanMinutes(min: number): string {
 
 async function render(): Promise<void> {
   const domain = new URLSearchParams(location.search).get("d") ?? "";
-  const { config, session, days, attempts } = await load();
+  const { config, session, days, attempts, unblocks } = await load();
 
   if (domain) {
     $("domain").textContent = domain;
@@ -19,7 +25,7 @@ async function render(): Promise<void> {
     await chrome.runtime.sendMessage({ type: "yf:attempt", domain });
   }
 
-  const { reasons } = currentDomains(config, session);
+  const { reasons } = currentDomains(config, session, unblocks);
   const running = sessionRunning(session);
 
   $("reason").textContent = running
@@ -42,6 +48,30 @@ async function render(): Promise<void> {
     Math.round((days[todayKey()] ?? 0) / 60),
   );
   $("attempts").textContent = String((attempts[domain] ?? 0) + 1);
+  $("unblocks").textContent = String(unblocksToday(unblocks));
+
+  // "Keep me out" is the loud one; the way out is quiet but never hidden.
+  $("keep").addEventListener("click", () => {
+    // Nowhere sensible to go but away from here.
+    location.href = "about:blank";
+  });
+
+  $("unblock").addEventListener("click", async () => {
+    if (!domain) return;
+    const res = (await chrome.runtime.sendMessage({
+      type: "yf:unblock",
+      domain,
+    })) as { minutes: number };
+
+    const note = $("unblocked-note");
+    note.hidden = false;
+    note.textContent = `Letting ${domain} through for ${res.minutes} minutes. It is written down.`;
+
+    // Give the rules a moment to update, then go where you were going.
+    setTimeout(() => {
+      location.href = `https://${domain}`;
+    }, 900);
+  });
 }
 
 void render();
