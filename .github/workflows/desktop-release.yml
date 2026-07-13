@@ -65,8 +65,11 @@ jobs:
           # Empty tagName on manual runs = build only, no release created.
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: 'YawningFace Desktop v__VERSION__'
-          # Publish immediately so builds are visible on the Releases page (drafts are hidden).
-          releaseDraft: false
+          # Draft while platforms upload; the publish job below flips it live
+          # only once EVERY platform's installers are attached. Publishing here
+          # directly would expose a Mac-only release for the ~5 min Windows
+          # still needs.
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
@@ -81,3 +84,17 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
             apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+
+  publish:
+    # Flip the draft live only after both platforms uploaded their installers.
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release edit '${{ github.ref_name }}'
+          --repo '${{ github.repository }}'
+          --draft=false --latest
