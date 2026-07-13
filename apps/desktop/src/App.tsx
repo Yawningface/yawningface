@@ -157,6 +157,10 @@ function SessionCard({
         <button className="ghost pill" disabled={busy} onClick={stop}>
           End session
         </button>
+        <p className="small-text">
+          Blocks apply to new connections. Tabs you already had open can limp
+          along for a couple of minutes until their caches expire.
+        </p>
       </section>
     );
   }

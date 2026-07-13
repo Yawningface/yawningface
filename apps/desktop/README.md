@@ -1,4 +1,4 @@
-# YawningFace Block - Desktop
+# yawningface - Desktop
 
 Cross-device distraction blocker for **macOS** and **Windows**. Open-source
 alternative to Freedom, Cold Turkey and SelfControl, built with Tauri 2.
@@ -54,6 +54,20 @@ The full self-host walkthrough is in the
 [`block_cloud` setup guide](https://github.com/Yawningface/block_cloud).
 
 ## Develop
+
+The daily loop on Windows is one script. It stops the installed copy, runs
+the latest code, and restores the installed copy afterwards; blocking keeps
+working throughout because both builds share the same spool, scheduled task,
+and config:
+
+```powershell
+cd apps/desktop
+.\dev.ps1           # hot reload: UI edits appear instantly, Ctrl+C to stop
+.\dev.ps1 -Once     # standalone release exe of the current code, no installer
+.\dev.ps1 -Restore  # bring the installed app back
+```
+
+Manually:
 
 ```bash
 npm install
