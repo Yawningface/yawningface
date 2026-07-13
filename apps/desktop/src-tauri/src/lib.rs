@@ -5,9 +5,14 @@ pub mod settings;
 pub mod state;
 pub mod sync;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use serde_json::json;
+use tauri::image::Image;
 use tauri::menu::{MenuBuilder, MenuItem, MenuItemBuilder};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
@@ -215,30 +220,87 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
-/// Handle to the tray's session menu item so its label can follow the
-/// session state ("Start working session" <-> "End working session").
+pub const TRAY_ID: &str = "main-tray";
+
+/// Tray state: the menu item whose label follows the session, and the two
+/// icons that make the tray itself the switch (colour = blocking, grey = off).
 pub struct TrayUi {
     pub session_item: MenuItem<Wry>,
+    pub icon_active: Image<'static>,
+    pub icon_idle: Image<'static>,
+    /// A toggle already in flight.
+    pub toggling: AtomicBool,
+    /// When the last toggle was accepted. The Windows shell can deliver the
+    /// same tray click more than once (and adds a DoubleClick on top), so a
+    /// single physical click would otherwise toggle twice and land back where
+    /// it started - the "I clicked it and nothing happened" bug.
+    pub last_toggle: Mutex<Instant>,
 }
 
-/// Keeps the tray menu label in sync with the running session.
+/// Clicks closer together than this are the same physical click.
+const TOGGLE_DEBOUNCE: Duration = Duration::from_millis(600);
+
+/// Keeps the tray icon, tooltip and menu label in sync with the session.
+///
+/// The tray handle is main-thread-only on Windows: touching it from the sync
+/// loop's thread silently corrupts the icon (it disappears from the tray and
+/// stops delivering clicks). Everything below is therefore marshalled onto the
+/// main thread, no matter which thread asked for the update.
 pub fn update_tray(app: &AppHandle) {
     let running = {
         let state = app.state::<AppState>();
         let session = state.local_session.lock().unwrap();
         session.is_running()
     };
-    if let Some(tray_ui) = app.try_state::<TrayUi>() {
-        let label = if running {
+
+    let app = app.clone();
+    let _ = app.clone().run_on_main_thread(move || {
+        let Some(tray_ui) = app.try_state::<TrayUi>() else {
+            return;
+        };
+
+        let _ = tray_ui.session_item.set_text(if running {
             "End working session"
         } else {
             "Start working session (1 h)"
-        };
-        let _ = tray_ui.session_item.set_text(label);
-    }
+        });
+
+        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+            let icon = if running {
+                tray_ui.icon_active.clone()
+            } else {
+                tray_ui.icon_idle.clone()
+            };
+            let _ = tray.set_icon(Some(icon));
+            let _ = tray.set_tooltip(Some(if running {
+                "yawningface: blocking. Click to stop."
+            } else {
+                "yawningface: off. Click to block for 1 h."
+            }));
+        }
+    });
 }
 
 fn toggle_session_from_tray(app: &AppHandle) {
+    if let Some(tray_ui) = app.try_state::<TrayUi>() {
+        // Collapse the shell's repeated clicks into one, then ignore anything
+        // that arrives while the previous toggle is still applying.
+        {
+            let mut last = tray_ui.last_toggle.lock().unwrap();
+            if last.elapsed() < TOGGLE_DEBOUNCE {
+                return;
+            }
+            *last = Instant::now();
+        }
+        if tray_ui
+            .toggling
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
+    }
+
     let running = {
         let state = app.state::<AppState>();
         let session = state.local_session.lock().unwrap();
@@ -257,6 +319,9 @@ fn toggle_session_from_tray(app: &AppHandle) {
             start_session(app.clone(), Some(60)).await
         };
         update_tray(&app);
+        if let Some(tray_ui) = app.try_state::<TrayUi>() {
+            tray_ui.toggling.store(false, Ordering::SeqCst);
+        }
     });
 }
 
@@ -299,8 +364,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // Tray icon + menu. Clicking the tray icon opens this menu (both
-            // buttons, macOS and Windows) - the window only opens on request.
+            // The tray icon IS the switch: left-click toggles a 1 h working
+            // session and the icon goes colour (blocking) or grey (off).
+            // Right-click opens the menu for everything else.
             let session_item =
                 MenuItemBuilder::with_id("session", "Start working session (1 h)").build(app)?;
             let open_item = MenuItemBuilder::with_id("open", "Open yawningface").build(app)?;
@@ -311,13 +377,30 @@ pub fn run() {
                 .separator()
                 .item(&quit_item)
                 .build()?;
-            app.manage(TrayUi { session_item });
+            app.manage(TrayUi {
+                session_item,
+                icon_active: Image::from_bytes(include_bytes!("../icons/tray-active.png"))?,
+                icon_idle: Image::from_bytes(include_bytes!("../icons/tray-idle.png"))?,
+                toggling: AtomicBool::new(false),
+                last_toggle: Mutex::new(Instant::now() - TOGGLE_DEBOUNCE),
+            });
 
-            TrayIconBuilder::with_id("main-tray")
+            TrayIconBuilder::with_id(TRAY_ID)
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("yawningface")
                 .menu(&menu)
-                .show_menu_on_left_click(true)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    // Toggle on button-up so a click that started elsewhere
+                    // (a drag onto the icon) does not fire it.
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        toggle_session_from_tray(tray.app_handle());
+                    }
+                })
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "session" => toggle_session_from_tray(app),
                     "open" => show_main_window(app),
