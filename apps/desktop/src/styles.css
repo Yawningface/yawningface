@@ -31,6 +31,7 @@
 
 :root {
   --paper: #faf9f4;
+  --surface: #ffffff;
   --yellow: #f0db0c;
   --ink: #12120f;
   --ink-soft: rgba(18, 18, 15, 0.76);
@@ -43,6 +44,25 @@
   --sans: "Geist", system-ui, sans-serif;
   --display: "Instrument Serif", Georgia, serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Development build: the app keeps its real colours, but says what it is.
+   Only `tauri dev` sets .dev-build; every installer, including a local
+   `tauri build`, ships as production and never shows this. */
+.dev-badge {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--yellow);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  padding: 3px 12px 4px;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 ::selection {
@@ -263,7 +283,7 @@ b {
 /* ---- cards: white sheets with an ink hairline ---- */
 
 .card {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
   padding: 18px 20px;
@@ -371,7 +391,7 @@ button:disabled {
 }
 
 .ghost.pill {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--ink);
   border-radius: var(--radius);
   padding: 8px 18px;
@@ -404,7 +424,7 @@ button:disabled {
 /* ---- session card ---- */
 
 .session-card {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
   padding: 22px 20px;
@@ -505,7 +525,7 @@ button:disabled {
   flex: 1;
   padding: 7px 0;
   border-radius: var(--radius);
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   color: var(--ink-faint);
   font-size: 12px;
@@ -531,7 +551,7 @@ button:disabled {
 input[type="time"] {
   font: inherit;
   font-family: var(--mono);
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
   padding: 8px 12px;
@@ -549,7 +569,7 @@ textarea {
   font-family: var(--mono);
   font-size: 12.5px;
   width: 100%;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -634,7 +654,7 @@ input[type="text"],
 input:not([type]) {
   font: inherit;
   font-family: var(--mono);
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -772,12 +792,12 @@ details summary {
 }
 
 .step.running {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--rule-faint);
 }
 
 .step.failed {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--danger);
 }
 

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import Onboarding from "./Onboarding";
+import { IS_DEV_BUILD } from "./build";
 import type {
   Blocklist,
   DeviceCodeInfo,
@@ -60,6 +61,16 @@ function DurationPicker({
   );
 }
 
+/** Only ever visible under `tauri dev`. A shipped installer never renders it. */
+function DevBadge() {
+  if (!IS_DEV_BUILD) return null;
+  return (
+    <div className="dev-badge" aria-label="Development build">
+      DEV BUILD
+    </div>
+  );
+}
+
 export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [status, setStatus] = useState<EngineStatus | null>(null);
@@ -88,6 +99,7 @@ export default function App() {
   if (!settings.onboarded) {
     return (
       <div className="shell">
+        <DevBadge />
         <Onboarding status={status} onDone={refresh} />
       </div>
     );
@@ -99,6 +111,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <DevBadge />
       {/* A desktop app, not a phone: navigation on the left, one job per page. */}
       <nav className="sidebar">
         {NAV.map((item) => (

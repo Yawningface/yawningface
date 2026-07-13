@@ -257,6 +257,17 @@ fn set_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
     }
 }
 
+/// A dev build says so in the titlebar and the taskbar, so it is never
+/// mistaken for the installed app while both are around.
+fn mark_dev_window(app: &AppHandle) {
+    if !IS_DEV_BUILD {
+        return;
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_title("DEV · yawningface");
+    }
+}
+
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -266,6 +277,23 @@ fn show_main_window(app: &AppHandle) {
 }
 
 pub const TRAY_ID: &str = "main-tray";
+
+/// A `tauri dev` build. Shipped installers are release builds, so this is
+/// false for every user. Used to keep the dev app visibly distinct.
+pub const IS_DEV_BUILD: bool = cfg!(debug_assertions);
+
+fn tray_tooltip(running: bool) -> String {
+    let base = if running {
+        "yawningface: blocking. Click to stop."
+    } else {
+        "yawningface: off. Click to block for 1 h."
+    };
+    if IS_DEV_BUILD {
+        format!("DEV · {base}")
+    } else {
+        base.to_string()
+    }
+}
 
 /// Tray state: the menu item whose label follows the session, and the two
 /// icons that make the tray itself the switch (colour = blocking, grey = off).
@@ -317,11 +345,7 @@ pub fn update_tray(app: &AppHandle) {
                 tray_ui.icon_idle.clone()
             };
             let _ = tray.set_icon(Some(icon));
-            let _ = tray.set_tooltip(Some(if running {
-                "yawningface: blocking. Click to stop."
-            } else {
-                "yawningface: off. Click to block for 1 h."
-            }));
+            let _ = tray.set_tooltip(Some(tray_tooltip(running)));
         }
     });
 }
@@ -455,6 +479,7 @@ pub fn run() {
                 })
                 .build(app)?;
             update_tray(&handle);
+            mark_dev_window(&handle);
 
             // Show the window unless started hidden (autostart).
             let hidden = std::env::args().any(|a| a == "--hidden");
