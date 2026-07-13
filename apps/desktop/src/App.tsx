@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import Onboarding from "./Onboarding";
 import type {
   Blocklist,
   DeviceCodeInfo,
@@ -93,6 +94,15 @@ export default function App() {
   }, [refresh]);
 
   if (!settings || !status) return <div className="shell" />;
+
+  // First run: the setup screen owns the whole window.
+  if (!settings.onboarded) {
+    return (
+      <div className="shell">
+        <Onboarding status={status} onDone={refresh} />
+      </div>
+    );
+  }
 
   return (
     <div className="shell">

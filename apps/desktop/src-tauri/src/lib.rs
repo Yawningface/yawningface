@@ -184,13 +184,43 @@ async fn save_local_config(
     sync_now(app).await
 }
 
+/// Progress of the one-time setup, so the first-run screen can show what is
+/// actually happening instead of a spinner. `state` is one of
+/// "running" | "done" | "failed".
+fn setup_step(app: &AppHandle, step: &str, state: &str, detail: &str) {
+    let _ = app.emit(
+        "yf://setup",
+        json!({ "step": step, "state": state, "detail": detail }),
+    );
+}
+
 #[tauri::command]
 async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
+    setup_step(
+        &app,
+        "approve",
+        "running",
+        "Windows will ask you to approve this once.",
+    );
+
     // Blocking admin-prompt call; run it off the async runtime.
-    tauri::async_runtime::spawn_blocking(blocking::platform::install_helper)
+    let installed = tauri::async_runtime::spawn_blocking(blocking::platform::install_helper)
         .await
-        .map_err(|e| e.to_string())??;
-    // Re-write the spool so the fresh daemon applies the current state.
+        .map_err(|e| e.to_string())?;
+    if let Err(e) = installed {
+        setup_step(&app, "approve", "failed", &e);
+        return Err(e);
+    }
+    setup_step(&app, "approve", "done", "Approved.");
+    setup_step(
+        &app,
+        "helper",
+        "done",
+        "Installed the blocking helper and its system task.",
+    );
+
+    // Re-write the spool so the fresh helper applies the current state.
+    setup_step(&app, "apply", "running", "Applying your blocklist.");
     let domains = {
         let state = app.state::<AppState>();
         let d = state.last_domains.lock().unwrap().clone().unwrap_or_default();
@@ -198,8 +228,23 @@ async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
     };
     blocking::hosts::write_spool(&domains)?;
     blocking::platform::trigger_apply();
-    let _ = sync_now(app).await;
+    let _ = sync_now(app.clone()).await;
+    setup_step(
+        &app,
+        "apply",
+        "done",
+        "Blocking works system-wide, in every browser.",
+    );
     Ok(())
+}
+
+/// Marks first-run onboarding as finished, so the app opens straight to home.
+#[tauri::command]
+fn finish_onboarding(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut settings = state.settings.lock().unwrap();
+    settings.onboarded = true;
+    save_json(&sync::settings_path(&app), &*settings)
 }
 
 fn set_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
@@ -346,7 +391,8 @@ pub fn run() {
             stop_session,
             get_local_config,
             save_local_config,
-            setup_hosts_helper
+            setup_hosts_helper,
+            finish_onboarding
         ])
         .setup(|app| {
             // Load persisted state.

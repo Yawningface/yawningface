@@ -609,6 +609,207 @@ details summary {
   margin-top: 10px;
 }
 
+/* ---- first run: the setup window ---- */
+
+.onboarding {
+  flex: 1;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 40px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.onboarding-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+
+/* The wordmark is the only oversized thing in the whole app. */
+.wordmark {
+  font-family: var(--display);
+  font-size: clamp(44px, 8vw, 76px);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.lede {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  max-width: 46ch;
+  text-wrap: balance;
+}
+
+.done-emoji {
+  font-size: 64px;
+  line-height: 1.1;
+  animation: hero-pop 260ms var(--ease);
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.onboarding-actions .primary.big {
+  min-width: 260px;
+  width: auto;
+}
+
+.setup-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.progress-track {
+  height: 3px;
+  background: var(--rule-faint);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transition: width 400ms var(--ease);
+}
+
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition: background-color 220ms var(--ease);
+}
+
+.step.running {
+  background: #ffffff;
+  border-color: var(--rule-faint);
+}
+
+.step.failed {
+  background: #ffffff;
+  border-color: var(--danger);
+}
+
+/* The mark is a ring while pending, fills in when the step really lands. */
+.step-mark {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: transparent;
+}
+
+.step.running .step-mark {
+  border-color: var(--ink);
+  border-right-color: transparent;
+  animation: step-spin 700ms linear infinite;
+}
+
+.step.done .step-mark {
+  background: var(--yellow);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.step.failed .step-mark {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
+
+@keyframes step-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step.running .step-mark {
+    animation: none;
+  }
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.step-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.step.idle .step-title {
+  color: var(--ink-faint);
+}
+
+.step-detail {
+  font-size: 12px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+
+/* Live output: the honest version of Hermes's log panel. */
+.live-output {
+  max-height: 120px;
+  overflow-y: auto;
+  background: var(--ink);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.live-line::before {
+  content: "→ ";
+  color: var(--yellow);
+}
+
+.setup-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 /* ---- footer hint ---- */
 
 .hint {

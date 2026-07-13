@@ -30,6 +30,8 @@ pub struct Settings {
     pub device_id: Option<String>,
     pub device_name: String,
     pub launch_at_login: bool,
+    /// First run is done; open straight to home from now on.
+    pub onboarded: bool,
 }
 
 impl Default for Settings {
@@ -43,6 +45,7 @@ impl Default for Settings {
             device_id: None,
             device_name: host,
             launch_at_login: true,
+            onboarded: false,
         }
     }
 }

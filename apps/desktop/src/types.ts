@@ -6,6 +6,15 @@ export interface Settings {
   deviceId: string | null;
   deviceName: string;
   launchAtLogin: boolean;
+  onboarded: boolean;
+}
+
+export type SetupStepState = "idle" | "running" | "done" | "failed";
+
+export interface SetupEvent {
+  step: string;
+  state: SetupStepState;
+  detail: string;
 }
 
 export interface EngineStatus {
