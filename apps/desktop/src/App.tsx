@@ -159,7 +159,7 @@ export default function App() {
               The same blocklist, everywhere you work.
             </p>
             <SyncCard status={status} onChanged={refresh} />
-            {localCfg && <CompanionsCard configPath={localCfg.path} />}
+            <CompanionsCard />
           </section>
         )}
         {view === "settings" && (
@@ -437,19 +437,7 @@ const IS_MAC = navigator.userAgent.includes("Mac");
 const EXTENSION_URL =
   "https://chromewebstore.google.com/detail/block/kfnhibndbkdjcplihjhbhdhclpbiocen";
 
-function CompanionsCard({ configPath }: { configPath: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const cliCommand = IS_MAC
-    ? `npm install -g @yawningface/cli\nexport YF_CONFIG="${configPath}"`
-    : `npm install -g @yawningface/cli\nsetx YF_CONFIG "${configPath}"`;
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(cliCommand);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
-
+function CompanionsCard() {
   return (
     <section className="card">
       <b>Works better together</b>
@@ -468,14 +456,10 @@ function CompanionsCard({ configPath }: { configPath: string }) {
         <div>
           <span>yf, the command line</span>
           <p className="small-text">
-            Your schedules are one JSON file you own. yf edits the same file
-            this app enforces: inspect it, validate it, reshape it by
-            conversation.
+            A command-line companion for managing your blocklist and schedules.
           </p>
         </div>
-        <button className="ghost pill" onClick={copy}>
-          {copied ? "Copied" : "Copy setup"}
-        </button>
+        <span className="small-text">coming soon</span>
       </div>
     </section>
   );
