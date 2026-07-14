@@ -27,6 +27,22 @@
           <button class="primary" id="keep">Keep me out</button>
           <button class="link" id="unblock">Unblock anyway</button>
         </div>
+        <form class="unblock-reason" id="unblock-reason" hidden>
+          <label for="reason">Why do you need access right now?</label>
+          <textarea
+            id="reason"
+            rows="4"
+            maxlength="500"
+            placeholder="I need LinkedIn to check whether they replied about the job…"
+            required
+          ></textarea>
+          <div class="unblock-reason-actions">
+            <button class="link" type="button" id="cancel-unblock">Cancel</button>
+            <button class="primary" type="submit" id="submit-unblock">
+              Unblock for 5 minutes
+            </button>
+          </div>
+        </form>
         <p class="small-text" id="unblocked-note" hidden></p>
 
         <div class="blocked-meta">

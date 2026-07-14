@@ -30,6 +30,76 @@ desktop app enforces (`%APPDATA%\org.yawningface.block.desktop\yawningface.json`
 and the same one `yf` edits. Export from one, import into the other, and both
 block the same things. No account, no server, no sync service required.
 
+## Signed in, or an island
+
+Signing in is optional and it is the only thing that connects this browser to
+the rest of the account. Signed out, the extension is an island: it blocks from
+`chrome.storage.local`, keeps its own history, and never makes a network
+request. That is a supported way to use it, not a degraded one.
+
+Signed in, it becomes the fourth client of the same three endpoints the desktop
+app already speaks to:
+
+| It does | Endpoint | So that |
+| --- | --- | --- |
+| registers this browser | `POST /api/v1/devices` (`platform: "extension"`) | Chrome appears next to the Mac and the phone in the devices table |
+| pulls the account's config | `GET /api/v1/config` | a schedule written on one device blocks on all of them |
+| ships what happened | `POST /api/v1/events` | focused time and refusals reach Insights |
+
+Two rules make this safe to turn on:
+
+- **The cloud config is pulled, never pushed.** The document you edit here is
+  the local one, and the account's document is merged on top of it, exactly as
+  the desktop app merges its own local `yawningface.json`. Two clients
+  last-write-winning a shared document every 60 seconds is how you lose a
+  blocklist you meant to keep.
+- **Merging is additive.** Signing in can only ever block more. It can never
+  quietly unblock something you were relying on.
+
+Events are queued in local storage and flushed on the next tick, so a flight,
+a tunnel or a server having a bad day costs you nothing: a batch that fails to
+deliver goes back on the queue. An event that never arrives is a lie in a chart
+later.
+
+### Auth0 setup (once)
+
+Login is **Authorization Code with PKCE** through `chrome.identity.launchWebAuthFlow`,
+not the desktop's Device Flow: a browser has somewhere good to land a redirect,
+and a native app does not. There is no client secret, and there must never be
+one. An extension is a public client and everything shipped inside it is public.
+
+The redirect URI is derived from the extension id, which is derived from the
+`key` pinned in `src/manifest.json`. That key is why the id does not move when
+the extension is loaded from a different path or a different machine, and why
+the callback URL registered in Auth0 keeps matching.
+
+In the Auth0 dashboard, on a **Native** application (public client, PKCE):
+
+- **Allowed Callback URLs**: `https://pbpgbdnamekjeifocnifopkecnphchjb.chromiumapp.org/`
+- **Refresh Token Rotation**: on, with **Absolute Expiration** off, so a signed-in
+  browser stays signed in.
+- The API (audience) needs **Allow Offline Access**, which it already does for
+  the desktop app.
+
+The options page prints the exact callback URL it will use, so there is no need
+to trust this README over the running code.
+
+### Pointing it at the tenant
+
+Same story as the desktop app's Settings: baked in at build time, overridable at
+runtime.
+
+```bash
+YF_API_BASE=https://block.yawningface.org \
+YF_AUTH0_DOMAIN=yawningface.eu.auth0.com \
+YF_AUTH0_CLIENT_ID=… \
+YF_AUTH0_AUDIENCE=https://block.yawningface.org/api \
+npm run build -w @yawningface/extension
+```
+
+Build without them and nothing breaks: the extension simply has no server to
+sign in to, and the options page asks for the four values under **Connection**.
+
 ## Build and load
 
 ```bash

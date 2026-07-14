@@ -146,13 +146,25 @@ fn get_stats(app: AppHandle) -> stats::Stats {
 
 #[tauri::command]
 async fn stop_session(app: AppHandle) -> Result<EngineStatus, String> {
+    let cancelled = {
+        let state = app.state::<AppState>();
+        let session = state.local_session.lock().unwrap();
+        session.is_running()
+    };
     {
         let state = app.state::<AppState>();
         let mut session = state.local_session.lock().unwrap();
         session.active = false;
         session.until = None;
         save_json(&sync::session_path(&app), &*session)?;
-        sync::push_event(&state, "session_stop", json!({ "local": true }));
+        sync::push_event(
+            &state,
+            "session_stop",
+            json!({ "local": true, "cancelled": cancelled }),
+        );
+    }
+    if cancelled {
+        sync::record_stats(&app, |s| s.record_cancellation("working"));
     }
     sync_now(app).await
 }
@@ -190,7 +202,23 @@ async fn save_local_config(
     {
         return Err("Config must contain a blocklists array.".into());
     }
+    let previous: serde_json::Value = load_json(&sync::local_config_path(&app));
+    let before = schedule::evaluate(&previous);
+    let after = schedule::evaluate(&config);
+    let cancelled_active_schedule = before.active_lists.len() > after.active_lists.len();
+
     save_json(&sync::local_config_path(&app), &config)?;
+    if cancelled_active_schedule {
+        {
+            let state = app.state::<AppState>();
+            sync::push_event(
+                &state,
+                "blocker_deactivated",
+                json!({ "source": "scheduled", "local": true }),
+            );
+        }
+        sync::record_stats(&app, |s| s.record_cancellation("scheduled"));
+    }
     sync_now(app).await
 }
 
@@ -294,7 +322,7 @@ pub const IS_DEV_BUILD: bool = cfg!(debug_assertions);
 
 fn tray_tooltip(running: bool) -> String {
     let base = if running {
-        "yawningface: blocking. Click to stop."
+        "yawningface: blocking. Open the app to end the session."
     } else {
         "yawningface: off. Click to block for 1 h."
     };
@@ -305,8 +333,8 @@ fn tray_tooltip(running: bool) -> String {
     }
 }
 
-/// Tray state: the menu item whose label follows the session, and the two
-/// icons that make the tray itself the switch (colour = blocking, grey = off).
+/// Tray state: the menu item whose label follows the session, and the active
+/// and idle icons. The tray starts sessions; ending one belongs to the app.
 pub struct TrayUi {
     pub session_item: MenuItem<Wry>,
     pub icon_active: Image<'static>,
@@ -343,7 +371,7 @@ pub fn update_tray(app: &AppHandle) {
         };
 
         let _ = tray_ui.session_item.set_text(if running {
-            "End working session"
+            "Working session active - open app to end"
         } else {
             "Start working session (1 h)"
         });
@@ -360,7 +388,20 @@ pub fn update_tray(app: &AppHandle) {
     });
 }
 
-fn toggle_session_from_tray(app: &AppHandle) {
+fn start_session_from_tray(app: &AppHandle) {
+    let running = {
+        let state = app.state::<AppState>();
+        let session = state.local_session.lock().unwrap();
+        session.is_running()
+    };
+
+    // A tray click must never deactivate protection. If a session is already
+    // running, take the user to the only place where it can be ended.
+    if running {
+        show_main_window(app);
+        return;
+    }
+
     if let Some(tray_ui) = app.try_state::<TrayUi>() {
         // Collapse the shell's repeated clicks into one, then ignore anything
         // that arrives while the previous toggle is still applying.
@@ -380,11 +421,6 @@ fn toggle_session_from_tray(app: &AppHandle) {
         }
     }
 
-    let running = {
-        let state = app.state::<AppState>();
-        let session = state.local_session.lock().unwrap();
-        session.is_running()
-    };
     // Starting a session before the hosts helper exists would silently not
     // block websites - surface the one-time setup card instead of failing.
     if !running && !blocking::platform::helper_installed() {
@@ -392,11 +428,7 @@ fn toggle_session_from_tray(app: &AppHandle) {
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let _ = if running {
-            stop_session(app.clone()).await
-        } else {
-            start_session(app.clone(), Some(60)).await
-        };
+        let _ = start_session(app.clone(), Some(60)).await;
         update_tray(&app);
         if let Some(tray_ui) = app.try_state::<TrayUi>() {
             tray_ui.toggling.store(false, Ordering::SeqCst);
@@ -451,8 +483,8 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // The tray icon IS the switch: left-click toggles a 1 h working
-            // session and the icon goes colour (blocking) or grey (off).
+            // A left-click starts a 1 h working session. Once active, the same
+            // click opens the app; it never ends protection from the tray.
             // Right-click opens the menu for everything else.
             let session_item =
                 MenuItemBuilder::with_id("session", "Start working session (1 h)").build(app)?;
@@ -485,11 +517,11 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        toggle_session_from_tray(tray.app_handle());
+                        start_session_from_tray(tray.app_handle());
                     }
                 })
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "session" => toggle_session_from_tray(app),
+                    "session" => start_session_from_tray(app),
                     "open" => show_main_window(app),
                     "quit" => app.exit(0),
                     _ => {}

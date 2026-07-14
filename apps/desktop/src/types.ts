@@ -13,6 +13,19 @@ export interface DayStat {
   focusSeconds: number;
   sessions: number;
   appsBlocked: number;
+  cancellations: number;
+}
+
+export interface ActivitySpan {
+  start: string;
+  end: string;
+  working: boolean;
+  scheduled: boolean;
+}
+
+export interface Cancellation {
+  occurredAt: string;
+  source: "working" | "scheduled" | string;
 }
 
 /** On-device history. Written by the engine, never uploaded. */
@@ -21,6 +34,8 @@ export interface Stats {
   blockedApps: Record<string, number>;
   longestFocusSeconds: number;
   currentFocusSeconds: number;
+  activity: ActivitySpan[];
+  cancellations: Cancellation[];
 }
 
 export type SetupStepState = "idle" | "running" | "done" | "failed";

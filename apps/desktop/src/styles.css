@@ -172,6 +172,45 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: 18px;
+  position: relative;
+  transition:
+    background-color 260ms var(--ease),
+    box-shadow 260ms var(--ease);
+}
+
+/* Blocking should be felt before it is read: the working area becomes a
+   sealed yellow perimeter. The movement happens once, when protection turns
+   on; an always-pulsing glow would compete with the work it is protecting. */
+.focus-page.blocking-active {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 219, 12, 0.08),
+    rgba(240, 219, 12, 0.025) 42%,
+    transparent 72%
+  );
+  box-shadow:
+    inset 0 0 0 3px var(--yellow),
+    inset 0 0 34px rgba(240, 219, 12, 0.1);
+  animation: protection-seal 620ms var(--ease) both;
+}
+
+@keyframes protection-seal {
+  from {
+    box-shadow:
+      inset 0 0 0 0 rgba(240, 219, 12, 0),
+      inset 0 0 0 rgba(240, 219, 12, 0);
+  }
+  to {
+    box-shadow:
+      inset 0 0 0 3px var(--yellow),
+      inset 0 0 34px rgba(240, 219, 12, 0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-page.blocking-active {
+    animation: none;
+  }
 }
 
 /* Secondary pages: a title, a line of context, then the content. */
@@ -202,6 +241,30 @@ body {
   justify-content: center;
   gap: 10px;
   padding: 8px 0 20px;
+}
+
+.protection-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 25px;
+  padding: 4px 10px;
+  border: 1px solid rgba(18, 18, 15, 0.28);
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.protection-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 3px rgba(18, 18, 15, 0.12);
 }
 
 .hero-emoji {
@@ -431,6 +494,11 @@ button:disabled {
   align-items: center;
   gap: 14px;
   text-align: center;
+}
+
+.blocking-active .session-card {
+  border-color: rgba(18, 18, 15, 0.34);
+  box-shadow: inset 0 3px 0 var(--yellow);
 }
 
 .session-title {
@@ -910,48 +978,58 @@ details summary {
   text-align: center;
 }
 
-/* gauge */
+/* 14-day, 24-hour activity timeline */
 
-.gauge {
-  position: relative;
-  width: 150px;
-  margin: 6px auto 2px;
+.activity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.gauge-track {
-  fill: none;
-  stroke: var(--rule-faint);
+.activity-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.gauge-fill {
-  fill: none;
-  stroke: var(--yellow);
-  transition: stroke-dasharray 500ms var(--ease);
+.activity-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--rule-faint);
 }
 
-.gauge-label {
-  position: absolute;
-  inset: auto 0 0;
-  text-align: center;
+.activity-legend .legend-scheduled { background: #c65a19; }
+.activity-legend .legend-working { background: var(--yellow); }
+.activity-legend .legend-cancelled {
+  height: 2px;
+  border-radius: 0;
+  background: #d5251f;
 }
 
-.gauge-value {
-  font-size: 21px;
-  font-weight: 650;
+.timeline-wrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.timeline-axis {
+  width: 18px;
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
   line-height: 1;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
-
-/* 14-day bars */
 
 .bars {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 5px;
-  height: 110px;
-  margin-top: 4px;
+  height: 266px;
+  flex: 1;
 }
 
 .bar-col {
@@ -964,25 +1042,98 @@ details summary {
 }
 
 .bar-track {
-  flex: 1;
+  position: relative;
+  height: 240px;
   width: 100%;
-  display: flex;
-  align-items: flex-end;
-}
-
-.bar {
-  width: 100%;
+  overflow: hidden;
   background: var(--rule-faint);
   border-radius: 2px;
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(25% - 0.5px),
+    rgba(255, 255, 255, 0.55) 25%,
+    transparent calc(25% + 0.5px),
+    transparent calc(50% - 0.5px),
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent calc(50% + 0.5px),
+    transparent calc(75% - 0.5px),
+    rgba(255, 255, 255, 0.55) 75%,
+    transparent calc(75% + 0.5px)
+  );
 }
 
-.bar.on {
+.activity-span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  min-height: 2px;
+}
+
+.activity-span.scheduled {
+  background: #c65a19;
+}
+
+.activity-span.working {
+  left: 18%;
+  width: 64%;
   background: var(--yellow);
   box-shadow: inset 0 0 0 1px rgba(18, 18, 15, 0.18);
 }
 
+.cancel-marker {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  height: 2px;
+  min-height: 2px;
+  background: #d5251f;
+  transform: translateY(-1px);
+}
+
 .bar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 8px;
+  color: var(--ink-faint);
+}
+
+.bar-day b {
   font-size: 9px;
+  font-weight: 600;
+}
+
+.deactivation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.deactivation-card p { margin-top: 5px; }
+
+.deactivation-numbers {
+  display: flex;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.deactivation-numbers span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.deactivation-numbers b {
+  font-size: 23px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.deactivation-numbers small {
+  margin-top: 4px;
   color: var(--ink-faint);
 }
 

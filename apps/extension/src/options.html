@@ -18,6 +18,55 @@
 
       <section class="card">
         <div class="row">
+          <div>
+            <h2>Account</h2>
+            <p class="muted" id="account-line">
+              Sign in and this browser joins the rest of your devices. Stay
+              signed out and it keeps working on its own, offline, forever.
+            </p>
+          </div>
+          <div class="actions">
+            <button class="pill" id="signin">Sign in</button>
+            <button class="pill" id="signout" hidden>Sign out</button>
+          </div>
+        </div>
+
+        <div id="account-detail" hidden>
+          <label class="field">
+            <span>This device is called</span>
+            <input id="device-name" type="text" placeholder="Windows PC (gaming)" />
+          </label>
+          <p class="small-text" id="sync-line"></p>
+        </div>
+
+        <details id="connection">
+          <summary class="small-text">Connection</summary>
+          <label class="field">
+            <span>API base</span>
+            <input id="api-base" type="url" placeholder="https://block.yawningface.org" />
+          </label>
+          <label class="field">
+            <span>Auth0 domain</span>
+            <input id="auth0-domain" type="text" placeholder="yawningface.eu.auth0.com" />
+          </label>
+          <label class="field">
+            <span>Auth0 client id</span>
+            <input id="auth0-client" type="text" />
+          </label>
+          <label class="field">
+            <span>Auth0 audience</span>
+            <input id="auth0-audience" type="text" placeholder="https://block.yawningface.org/api" />
+          </label>
+          <p class="small-text">
+            Auth0 must allow this exact callback URL:
+            <code id="redirect"></code>
+          </p>
+          <button class="pill" id="save-connection">Save</button>
+        </details>
+      </section>
+
+      <section class="card">
+        <div class="row">
           <h2>Schedules</h2>
           <button class="pill" id="new">+ New</button>
         </div>

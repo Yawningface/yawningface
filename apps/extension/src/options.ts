@@ -1,5 +1,8 @@
 import { validateConfig, type BlockConfig } from "@yawningface/schema";
 import { DEFAULT_SESSION_DOMAINS, blocklistFromDomains, load } from "./engine";
+import { login, logout, redirectUri, revoke } from "./auth";
+import { loadStatus } from "./cloud";
+import { loadSettings, saveSettings } from "./env";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -183,7 +186,102 @@ $("file").addEventListener("change", async (e) => {
   }
 });
 
+/* ── Account ──────────────────────────────────────────────────────────────
+ *
+ * Signing in is the whole difference between an island and a device. The
+ * options page is where it happens, because `launchWebAuthFlow` needs a real
+ * extension page behind it: a popup that closes the moment focus moves to the
+ * Auth0 window is not one.
+ */
+
+const input = (id: string) => $(id) as HTMLInputElement;
+
+async function renderAccount(): Promise<void> {
+  const [status, settings] = await Promise.all([loadStatus(), loadSettings()]);
+
+  input("api-base").value = settings.apiBase;
+  input("auth0-domain").value = settings.auth0Domain;
+  input("auth0-client").value = settings.auth0ClientId;
+  input("auth0-audience").value = settings.auth0Audience;
+  input("device-name").value = settings.deviceName;
+  $("redirect").textContent = redirectUri();
+
+  $("signin").hidden = status.signedIn;
+  $("signout").hidden = !status.signedIn;
+  $("account-detail").hidden = !status.signedIn;
+  // Nowhere to sign in to yet: lead with the thing they have to fill in.
+  ($("connection") as HTMLDetailsElement).open =
+    !status.configured && !status.signedIn;
+
+  if (status.signedIn) {
+    const who = status.userEmail ?? status.userName ?? "your account";
+    $("account-line").textContent = `Signed in as ${who}. This browser syncs with your other devices.`;
+    const when = status.lastSync
+      ? new Date(status.lastSync).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "not yet";
+    const queued = status.queued > 0 ? `, ${status.queued} waiting to send` : "";
+    $("sync-line").textContent = status.lastSyncError
+      ? `Last sync failed: ${status.lastSyncError}`
+      : `Last synced ${when}${queued}.`;
+  } else if (!status.configured) {
+    $("account-line").textContent =
+      "No server configured yet. Fill in Connection below, or keep using this browser on its own.";
+  } else {
+    $("account-line").textContent =
+      "Sign in and this browser joins the rest of your devices. Stay signed out and it keeps working on its own, offline, forever.";
+  }
+}
+
+$("signin").addEventListener("click", async () => {
+  const button = $("signin") as HTMLButtonElement;
+  button.disabled = true;
+  button.textContent = "Signing in...";
+  try {
+    await login();
+    // Claim a row in the devices table right away, so the account sees this
+    // browser before the first event rather than after it.
+    await chrome.runtime.sendMessage({ type: "yf:apply" });
+  } catch (err) {
+    $("account-line").textContent =
+      err instanceof Error ? err.message : String(err);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
+    await renderAccount();
+  }
+});
+
+$("signout").addEventListener("click", async () => {
+  await revoke();
+  await logout();
+  await chrome.runtime.sendMessage({ type: "yf:apply" });
+  await renderAccount();
+});
+
+$("device-name").addEventListener("change", async () => {
+  const deviceName = input("device-name").value.trim();
+  if (!deviceName) return;
+  await saveSettings({ deviceName });
+  // Push the new name up now, rather than leaving Insights showing the old one.
+  await chrome.runtime.sendMessage({ type: "yf:apply" });
+  await renderAccount();
+});
+
+$("save-connection").addEventListener("click", async () => {
+  await saveSettings({
+    apiBase: input("api-base").value.trim(),
+    auth0Domain: input("auth0-domain").value.trim().replace(/^https?:\/\//, ""),
+    auth0ClientId: input("auth0-client").value.trim(),
+    auth0Audience: input("auth0-audience").value.trim(),
+  });
+  await renderAccount();
+});
+
 void (async () => {
   config = (await load()).config;
   render();
+  await renderAccount();
 })();

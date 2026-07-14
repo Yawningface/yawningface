@@ -8,7 +8,22 @@ export interface DayCell {
   date: Date;
   minutes: number;
   sessions: number;
+  cancellations: number;
+  activity: ActivitySlice[];
+  cancellationMarkers: CancellationMarker[];
   future: boolean;
+}
+
+export interface ActivitySlice {
+  top: number;
+  height: number;
+  working: boolean;
+  scheduled: boolean;
+}
+
+export interface CancellationMarker {
+  top: number;
+  source: string;
 }
 
 export interface Insights {
@@ -23,6 +38,9 @@ export interface Insights {
   longestStreak: number;
   topApps: { app: string; count: number }[];
   appsBlocked: number;
+  cancellationsToday: number;
+  cancellationsLast14: number;
+  cancellationsTotal: number;
   last14: DayCell[];
   weeks: DayCell[][];
   maxDayMinutes: number;
@@ -51,6 +69,51 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
   const minutesOf = (key: string) =>
     Math.round((days[key]?.focusSeconds ?? 0) / 60);
   const sessionsOf = (key: string) => days[key]?.sessions ?? 0;
+  const cancellationsOf = (key: string) => days[key]?.cancellations ?? 0;
+
+  const activityFor = (ts: number): ActivitySlice[] => {
+    const dayStart = new Date(ts);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    return (stats.activity ?? []).flatMap((span) => {
+      const start = new Date(span.start);
+      const end = new Date(span.end);
+      if (
+        !Number.isFinite(start.getTime()) ||
+        !Number.isFinite(end.getTime()) ||
+        end <= dayStart ||
+        start >= dayEnd
+      ) {
+        return [];
+      }
+      const startMinute =
+        start <= dayStart
+          ? 0
+          : start.getHours() * 60 + start.getMinutes() + start.getSeconds() / 60;
+      const endMinute =
+        end >= dayEnd
+          ? 1440
+          : end.getHours() * 60 + end.getMinutes() + end.getSeconds() / 60;
+      return [{
+        top: (startMinute / 1440) * 100,
+        height: (Math.max(1, endMinute - startMinute) / 1440) * 100,
+        working: span.working,
+        scheduled: span.scheduled,
+      }];
+    });
+  };
+
+  const cancellationMarkersFor = (ts: number): CancellationMarker[] => {
+    const key = dayKey(ts);
+    return (stats.cancellations ?? []).flatMap((event) => {
+      const at = new Date(event.occurredAt);
+      if (!Number.isFinite(at.getTime()) || dayKey(at.getTime()) !== key) return [];
+      const minute = at.getHours() * 60 + at.getMinutes() + at.getSeconds() / 60;
+      return [{ top: (minute / 1440) * 100, source: event.source }];
+    });
+  };
 
   const activeKeys = Object.keys(days).filter(
     (k) => (days[k]?.focusSeconds ?? 0) > 0,
@@ -59,10 +122,12 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
   let totalMinutes = 0;
   let sessions = 0;
   let appsBlocked = 0;
+  let cancellationsTotal = 0;
   for (const k of Object.keys(days)) {
     totalMinutes += minutesOf(k);
     sessions += sessionsOf(k);
     appsBlocked += days[k]?.appsBlocked ?? 0;
+    cancellationsTotal += cancellationsOf(k);
   }
 
   let minutesThisWeek = 0;
@@ -115,6 +180,9 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
         date: new Date(ts),
         minutes: minutesOf(k),
         sessions: sessionsOf(k),
+        cancellations: cancellationsOf(k),
+        activity: activityFor(ts),
+        cancellationMarkers: cancellationMarkersFor(ts),
         future: ts > today0,
       });
     }
@@ -130,6 +198,9 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
       date: new Date(ts),
       minutes: minutesOf(k),
       sessions: sessionsOf(k),
+      cancellations: cancellationsOf(k),
+      activity: activityFor(ts),
+      cancellationMarkers: cancellationMarkersFor(ts),
       future: false,
     });
   }
@@ -155,6 +226,9 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
     longestStreak,
     topApps,
     appsBlocked,
+    cancellationsToday: cancellationsOf(dayKey(today0)),
+    cancellationsLast14: last14.reduce((sum, day) => sum + day.cancellations, 0),
+    cancellationsTotal,
     last14,
     weeks,
     maxDayMinutes: Math.max(1, ...last14.map((d) => d.minutes), 1),

@@ -18,9 +18,15 @@ function humanMinutes(min: number): string {
 }
 
 async function render(): Promise<void> {
-  const { config, session, days } = await load();
+  const { config, cloudConfig, session, days } = await load();
   const running = sessionRunning(session);
-  const { domains, reasons } = currentDomains(config, session);
+  const { domains, reasons } = currentDomains(
+    config,
+    session,
+    [],
+    new Date(),
+    cloudConfig,
+  );
   const blocking = domains.length > 0;
 
   $("emoji").textContent = blocking ? "😎" : "😴";
@@ -52,9 +58,10 @@ async function render(): Promise<void> {
   $("today").textContent = focused > 0 ? `${humanMinutes(focused)} focused today` : "";
 }
 
+/** The worker owns the write, so the session is recorded as an event exactly
+    once no matter who flipped the switch. */
 async function apply(session: Session): Promise<void> {
-  await chrome.storage.local.set({ session });
-  await chrome.runtime.sendMessage({ type: "yf:apply" });
+  await chrome.runtime.sendMessage({ type: "yf:session", session });
   await render();
 }
 

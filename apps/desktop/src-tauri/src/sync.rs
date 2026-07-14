@@ -59,7 +59,7 @@ pub async fn run_sync_loop(app: AppHandle) {
     let mut ticks: u64 = 0;
     loop {
         let result = tick(&app).await;
-        let blocking = {
+        {
             let state = app.state::<AppState>();
             let mut status = state.status.lock().unwrap();
             match result {
@@ -70,8 +70,7 @@ pub async fn run_sync_loop(app: AppHandle) {
                 Err(e) => status.last_sync_error = Some(e),
             }
             let _ = app.emit("yf://status", status.clone());
-            status.session_active || status.blocked_domains > 0 || status.blocked_apps > 0
-        };
+        }
         crate::update_tray(&app);
 
         ticks += 1;
@@ -83,7 +82,23 @@ pub async fn run_sync_loop(app: AppHandle) {
         // Focused time is measured, not estimated: one interval of blocking is
         // credited only after that interval has actually elapsed.
         tokio::time::sleep(std::time::Duration::from_secs(SYNC_INTERVAL_SECS)).await;
-        record_stats(&app, |s| s.record_tick(blocking, SYNC_INTERVAL_SECS));
+        // Read the state again after the interval. A user may have ended a
+        // session while we slept; in that case the red deactivation marker
+        // must be followed by grey rather than a span extending past it.
+        let (working, scheduled) = {
+            let state = app.state::<AppState>();
+            let status = state.status.lock().unwrap();
+            (
+                status.session_active,
+                status
+                    .active_lists
+                    .iter()
+                    .any(|name| name != "Working session"),
+            )
+        };
+        record_stats(&app, |s| {
+            s.record_tick(working, scheduled, SYNC_INTERVAL_SECS)
+        });
     }
 }
 

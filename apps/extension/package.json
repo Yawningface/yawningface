@@ -1,6 +1,6 @@
 {
   "name": "@yawningface/extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "yawningface for Chrome: a client of the same blocking contract as the desktop app, the CLI and the phone.",
   "license": "MIT",

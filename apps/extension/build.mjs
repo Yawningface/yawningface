@@ -15,6 +15,21 @@ const out = "dist";
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
+/**
+ * The tenant, baked in at build time the same way the desktop app bakes it in
+ * (there via `option_env!`, here via esbuild `define`). Empty by default, so a
+ * clone builds without secrets and the options page asks for them instead.
+ * Nothing here is a secret: an extension is a public client, and its Auth0
+ * client id is public by design. PKCE, not a client secret, is what protects
+ * the exchange.
+ */
+const define = {
+  __YF_API_BASE__: JSON.stringify(process.env.YF_API_BASE ?? ""),
+  __YF_AUTH0_DOMAIN__: JSON.stringify(process.env.YF_AUTH0_DOMAIN ?? ""),
+  __YF_AUTH0_CLIENT_ID__: JSON.stringify(process.env.YF_AUTH0_CLIENT_ID ?? ""),
+  __YF_AUTH0_AUDIENCE__: JSON.stringify(process.env.YF_AUTH0_AUDIENCE ?? ""),
+};
+
 const options = {
   entryPoints: [
     "src/background.ts",
@@ -26,6 +41,7 @@ const options = {
   bundle: true,
   format: "esm",
   target: "chrome120",
+  define,
   sourcemap: watch,
   minify: !watch,
   logLevel: "info",

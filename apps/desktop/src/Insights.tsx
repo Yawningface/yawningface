@@ -3,49 +3,55 @@ import { invoke } from "@tauri-apps/api/core";
 import { computeInsights, humanMinutes, type DayCell } from "./insights-data";
 import type { Stats } from "./types";
 
-/** Half-dial: today's focused time against a day's target. */
-function Gauge({ minutes, target }: { minutes: number; target: number }) {
-  const r = 52;
-  const len = Math.PI * r;
-  const frac = Math.max(0, Math.min(1, minutes / target));
-  const arc = `M ${64 - r} 64 A ${r} ${r} 0 0 1 ${64 + r} 64`;
-
-  return (
-    <div className="gauge">
-      <svg viewBox="0 0 128 74" width="100%">
-        <path d={arc} className="gauge-track" strokeWidth={12} strokeLinecap="round" />
-        <path
-          d={arc}
-          className="gauge-fill"
-          strokeWidth={12}
-          strokeLinecap="round"
-          strokeDasharray={`${frac * len} ${len}`}
-        />
-      </svg>
-      <div className="gauge-label">
-        <div className="gauge-value">{humanMinutes(minutes)}</div>
-        <div className="small-text">focused today</div>
-      </div>
-    </div>
-  );
-}
-
 function Bars({ days }: { days: DayCell[] }) {
-  const max = Math.max(1, ...days.map((d) => d.minutes));
   return (
-    <div className="bars">
-      {days.map((d) => (
-        <div className="bar-col" key={d.key}>
-          <div className="bar-track">
+    <div className="timeline-wrap">
+      <div className="timeline-axis small-text" aria-hidden="true">
+        <span>00</span>
+        <span>06</span>
+        <span>12</span>
+        <span>18</span>
+        <span>24</span>
+      </div>
+      <div className="bars">
+        {days.map((d) => (
+          <div className="bar-col" key={d.key}>
             <div
-              className={`bar ${d.minutes > 0 ? "on" : ""}`}
-              style={{ height: `${Math.max(d.minutes > 0 ? 6 : 2, (d.minutes / max) * 100)}%` }}
-              title={`${d.date.toLocaleDateString()} - ${humanMinutes(d.minutes)}`}
-            />
+              className="bar-track"
+              title={`${d.date.toLocaleDateString()} - ${humanMinutes(d.minutes)}, ${d.cancellations} deactivations`}
+            >
+              {d.activity.map((span, i) => (
+                <div key={i}>
+                  {span.scheduled && (
+                    <span
+                      className="activity-span scheduled"
+                      style={{ top: `${span.top}%`, height: `${span.height}%` }}
+                    />
+                  )}
+                  {span.working && (
+                    <span
+                      className="activity-span working"
+                      style={{ top: `${span.top}%`, height: `${span.height}%` }}
+                    />
+                  )}
+                </div>
+              ))}
+              {d.cancellationMarkers.map((marker, i) => (
+                <span
+                  key={`cancel-${i}`}
+                  className="cancel-marker"
+                  style={{ top: `${marker.top}%` }}
+                  title={`${marker.source} session deactivated`}
+                />
+              ))}
+            </div>
+            <span className="bar-day">
+              {d.date.toLocaleDateString([], { weekday: "narrow" })}
+              <b>{d.date.getDate()}</b>
+            </span>
           </div>
-          <span className="bar-day">{d.date.getDate()}</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -84,15 +90,6 @@ function Heatmap({ weeks, max }: { weeks: DayCell[][]; max: number }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat-row">
-      <span className="muted">{label}</span>
-      <span className="stat-value">{value}</span>
-    </div>
-  );
-}
-
 export default function Insights() {
   const [stats, setStats] = useState<Stats | null>(null);
 
@@ -112,9 +109,6 @@ export default function Insights() {
     return (
       <section className="page">
         <h2>Insights</h2>
-        <p className="page-note">
-          Your focused time, measured on this machine and stored nowhere else.
-        </p>
         <div className="empty">
           <div className="empty-emoji">😴</div>
           <b>Nothing to show yet</b>
@@ -132,26 +126,33 @@ export default function Insights() {
   return (
     <section className="page insights">
       <h2>Insights</h2>
-      <p className="page-note">
-        Focused time, measured on this machine. Nothing is uploaded, and nothing
-        here is an estimate.
-      </p>
 
       <div className="insight-grid">
-        <section className="card">
-          <b>Today</b>
-          <Gauge minutes={ins.minutesToday} target={120} />
-          <p className="small-text center">
-            {humanMinutes(ins.minutesThisWeek)} in the last 7 days
-          </p>
-        </section>
-
         <section className="card wide">
           <div className="row">
             <b>Activity</b>
             <span className="small-text">last 14 days</span>
           </div>
+          <div className="activity-legend small-text">
+            <span><i className="legend-off" />off</span>
+            <span><i className="legend-scheduled" />scheduled</span>
+            <span><i className="legend-working" />working session</span>
+            <span><i className="legend-cancelled" />deactivated</span>
+          </div>
           <Bars days={ins.last14} />
+        </section>
+
+        <section className="card wide deactivation-card">
+          <div>
+            <b>Blocker deactivations</b>
+            <p className="muted">
+              Working sessions ended early or active schedules switched off.
+            </p>
+          </div>
+          <div className="deactivation-numbers">
+            <span><b>{ins.cancellationsToday}</b><small>today</small></span>
+            <span><b>{ins.cancellationsLast14}</b><small>last 14 days</small></span>
+          </div>
         </section>
 
         <section className="card wide">
@@ -174,28 +175,15 @@ export default function Insights() {
           </div>
         </section>
 
-        <section className="card">
-          <b>All time</b>
-          <div className="stats">
-            <Stat label="Focused" value={humanMinutes(ins.totalMinutes)} />
-            <Stat label="Sessions" value={`${ins.sessions}`} />
-            <Stat label="Active days" value={`${ins.activeDays}`} />
-            <Stat label="Best stretch" value={humanMinutes(ins.longestFocusMinutes)} />
-            <Stat
-              label="Typical day"
-              value={humanMinutes(ins.avgMinutesPerActiveDay)}
-            />
-          </div>
-        </section>
-
         <section className="card wide">
-          <b>The ones that kept trying</b>
+          <b>Apps that kept trying</b>
           <p className="muted">
             Apps yawningface closed for you while a block was on.
           </p>
           {ins.topApps.length === 0 ? (
             <p className="small-text">
-              None yet. Websites are blocked silently, so only apps show up here.
+              None yet. System-wide website blocking cannot see visits; the
+              browser extension records website attempts on its block page.
             </p>
           ) : (
             <div className="app-tags">

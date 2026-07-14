@@ -251,6 +251,7 @@ h2 {
 
 input[type="text"],
 input[type="time"],
+input[type="url"],
 textarea {
   font: inherit;
   font-family: var(--sans);
@@ -272,6 +273,38 @@ input[type="checkbox"] {
   accent-color: var(--ink);
   width: 15px;
   height: 15px;
+}
+
+/* The account card: a label above its input, stacked. */
+.field {
+  display: block;
+  margin-top: 12px;
+}
+
+.field > span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  color: var(--ink-muted, inherit);
+}
+
+details > summary {
+  cursor: pointer;
+  margin-top: 14px;
+  user-select: none;
+}
+
+details[open] > summary {
+  margin-bottom: 4px;
+}
+
+details code {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+details #save-connection {
+  margin-top: 12px;
 }
 
 .days {
@@ -374,6 +407,40 @@ input[type="checkbox"] {
 .blocked-actions .primary {
   width: auto;
   padding: 12px 28px;
+}
+
+.unblock-reason {
+  width: min(100%, 520px);
+  padding: 16px;
+  border: 1px solid var(--rule-faint);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.unblock-reason label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.unblock-reason textarea {
+  width: 100%;
+  resize: vertical;
+  background: var(--paper);
+}
+
+.unblock-reason-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.unblock-reason-actions .primary {
+  width: auto;
+  padding: 10px 18px;
 }
 
 .blocked-meta {

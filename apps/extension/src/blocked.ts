@@ -17,7 +17,7 @@ function humanMinutes(min: number): string {
 
 async function render(): Promise<void> {
   const domain = new URLSearchParams(location.search).get("d") ?? "";
-  const { config, session, days, attempts, unblocks } = await load();
+  const { config, cloudConfig, session, days, attempts, unblocks } = await load();
 
   if (domain) {
     $("domain").textContent = domain;
@@ -25,7 +25,13 @@ async function render(): Promise<void> {
     await chrome.runtime.sendMessage({ type: "yf:attempt", domain });
   }
 
-  const { reasons } = currentDomains(config, session, unblocks);
+  const { reasons } = currentDomains(
+    config,
+    session,
+    unblocks,
+    new Date(),
+    cloudConfig,
+  );
   const running = sessionRunning(session);
 
   $("reason").textContent = running
@@ -56,22 +62,51 @@ async function render(): Promise<void> {
     location.href = "about:blank";
   });
 
-  $("unblock").addEventListener("click", async () => {
+  const reasonForm = $("unblock-reason") as HTMLFormElement;
+  const reasonInput = $("reason") as HTMLTextAreaElement;
+
+  $("unblock").addEventListener("click", () => {
     if (!domain) return;
-    const res = (await chrome.runtime.sendMessage({
+    reasonForm.hidden = false;
+    $("unblock").setAttribute("hidden", "");
+    reasonInput.focus();
+  });
+
+  $("cancel-unblock").addEventListener("click", () => {
+    reasonForm.hidden = true;
+    $("unblock").removeAttribute("hidden");
+    reasonInput.value = "";
+  });
+
+  reasonForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!domain || !reasonInput.reportValidity()) return;
+    const response = (await chrome.runtime.sendMessage({
       type: "yf:unblock",
       domain,
-    })) as { minutes: number };
+      reason: reasonInput.value,
+    })) as { ok: boolean; minutes?: number; error?: string };
+    if (!response.ok || !response.minutes) {
+      reasonInput.setCustomValidity(response.error ?? "Could not unblock this site.");
+      reasonInput.reportValidity();
+      return;
+    }
+
+    const minutes = response.minutes;
+    reasonForm.hidden = true;
+    reasonInput.value = "";
 
     const note = $("unblocked-note");
     note.hidden = false;
-    note.textContent = `Letting ${domain} through for ${res.minutes} minutes. It is written down.`;
+    note.textContent = `Letting ${domain} through for ${minutes} minutes. Your reason is written down.`;
 
     // Give the rules a moment to update, then go where you were going.
     setTimeout(() => {
       location.href = `https://${domain}`;
     }, 900);
   });
+
+  reasonInput.addEventListener("input", () => reasonInput.setCustomValidity(""));
 }
 
 void render();

@@ -25,10 +25,18 @@ export interface Unblock {
   /** Epoch ms when the reprieve ends. */
   until: number;
   at: number;
+  /** The deliberate cost of bending the rule: why access was needed. */
+  reason?: string;
 }
 
 export interface Stored {
   config: BlockConfig;
+  /**
+   * The signed-in account's document, pulled from the cloud and cached here.
+   * Null when signed out, and then the extension is an island: local config
+   * only, which is exactly how it worked before there was an account.
+   */
+  cloudConfig: BlockConfig | null;
   session: Session;
   /** Focused seconds per local day, "YYYY-MM-DD". The insights the app shows. */
   days: Record<string, number>;
@@ -69,6 +77,7 @@ export function sessionRunning(s: Session | undefined, now = Date.now()): boolea
 export async function load(): Promise<Stored> {
   const raw = await chrome.storage.local.get([
     "config",
+    "cloudConfig",
     "session",
     "days",
     "attempts",
@@ -76,6 +85,7 @@ export async function load(): Promise<Stored> {
   ]);
   return {
     config: (raw.config as BlockConfig) ?? defaultConfig(),
+    cloudConfig: (raw.cloudConfig as BlockConfig) ?? null,
     session: (raw.session as Session) ?? IDLE_SESSION,
     days: (raw.days as Record<string, number>) ?? {},
     attempts: (raw.attempts as Record<string, number>) ?? {},
@@ -93,17 +103,33 @@ export function unblocksToday(unblocks: Unblock[], now = new Date()): number {
   return unblocks.filter((u) => todayKey(new Date(u.at)) === key).length;
 }
 
-/** Everything that should be blocked right now, from schedules + session,
-    minus anything you have deliberately let through for a few minutes. */
+/**
+ * Everything that should be blocked right now, from schedules + session, minus
+ * anything you have deliberately let through for a few minutes.
+ *
+ * The account's config (when signed in) is merged on top of the local one
+ * rather than replacing it, which is what the desktop app does with its own
+ * local `yawningface.json`. Blocking is additive on purpose: signing in can
+ * only ever block more, never quietly unblock something you were relying on.
+ */
 export function currentDomains(
   config: BlockConfig,
   session: Session,
   unblocks: Unblock[] = [],
   now = new Date(),
+  cloudConfig: BlockConfig | null = null,
 ): { domains: string[]; reasons: string[] } {
   const set = evaluate(config, "desktop", now);
   const domains = new Set<string>(set.domains);
   const reasons = [...set.activeLists];
+
+  if (cloudConfig) {
+    const cloud = evaluate(cloudConfig, "desktop", now);
+    for (const d of cloud.domains) domains.add(d);
+    for (const name of cloud.activeLists) {
+      if (!reasons.includes(name)) reasons.push(name);
+    }
+  }
 
   if (sessionRunning(session, now.getTime())) {
     reasons.push("Working session");

@@ -505,6 +505,12 @@ function Hero({ status }: { status: EngineStatus }) {
 
   return (
     <div className="hero">
+      {blocking && (
+        <div className="protection-live" role="status">
+          <span className="protection-dot" aria-hidden="true" />
+          Protection active
+        </div>
+      )}
       <div className="hero-emoji" key={blocking ? "on" : "off"}>
         {blocking ? "😎" : "😴"}
       </div>
@@ -524,6 +530,8 @@ function FocusView({
 }) {
   const [helperBusy, setHelperBusy] = useState(false);
   const [helperError, setHelperError] = useState<string | null>(null);
+  const blocking =
+    status.sessionActive || status.blockedDomains > 0 || status.blockedApps > 0;
 
   const installHelper = async () => {
     setHelperBusy(true);
@@ -539,7 +547,7 @@ function FocusView({
   };
 
   return (
-    <main className="focus-page">
+    <main className={`focus-page ${blocking ? "blocking-active" : ""}`}>
       <Hero status={status} />
 
       {!status.hostsHelperInstalled && (
