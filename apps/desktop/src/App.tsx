@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import packageInfo from "../package.json";
 import Onboarding from "./Onboarding";
 import Insights from "./Insights";
 import { IS_DEV_BUILD } from "./build";
@@ -703,42 +704,37 @@ function SettingsView({
         Launch at login
       </label>
 
-      <details>
-        <summary className="muted">Advanced - self-hosted server</summary>
-        <div className="advanced">
-          <label>
-            Server URL
-            <input
-              value={form.apiBaseUrl}
-              placeholder="https://block-cloud.vercel.app"
-              onChange={(e) => set("apiBaseUrl", e.target.value)}
-            />
-          </label>
-          <label>
-            Auth0 domain
-            <input
-              value={form.auth0Domain}
-              placeholder="your-tenant.eu.auth0.com"
-              onChange={(e) => set("auth0Domain", e.target.value)}
-            />
-          </label>
-          <label>
-            Auth0 client ID
-            <input
-              value={form.auth0ClientId}
-              onChange={(e) => set("auth0ClientId", e.target.value)}
-            />
-          </label>
-          <label>
-            Auth0 audience
-            <input
-              value={form.auth0Audience}
-              placeholder="https://block-api"
-              onChange={(e) => set("auth0Audience", e.target.value)}
-            />
-          </label>
+      <section className="card settings-about">
+        <b>About</b>
+        <div className="about-row">
+          <span className="muted">Version</span>
+          <code>{packageInfo.version}</code>
         </div>
-      </details>
+        <div className="about-row">
+          <span className="muted">Source</span>
+          <button
+            className="about-link"
+            onClick={() => openUrl("https://github.com/Yawningface/yawningface")}
+          >
+            github.com/Yawningface/yawningface ↗
+          </button>
+        </div>
+        <div className="about-row">
+          <span className="muted">Updates</span>
+          <button
+            className="about-link"
+            onClick={() =>
+              openUrl("https://github.com/Yawningface/yawningface/releases/latest")
+            }
+          >
+            Latest release ↗
+          </button>
+        </div>
+        <div className="about-row">
+          <span className="muted">License</span>
+          <span>MIT</span>
+        </div>
+      </section>
 
       <div className="actions">
         <button className="primary big" disabled={busy} onClick={save}>
