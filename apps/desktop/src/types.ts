@@ -101,6 +101,19 @@ export interface FullState {
   status: EngineStatus;
 }
 
+export interface BrowserExtensionStatus {
+  id: string;
+  name: string;
+  profiles: number;
+  installedProfiles: number;
+  enabledProfiles: number;
+}
+
+export interface BrowserExtensionScan {
+  extensionId: string;
+  browsers: BrowserExtensionStatus[];
+}
+
 export interface DeviceCodeInfo {
   deviceCode: string;
   userCode: string;

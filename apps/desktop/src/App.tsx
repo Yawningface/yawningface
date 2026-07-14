@@ -8,6 +8,8 @@ import Insights from "./Insights";
 import { IS_DEV_BUILD } from "./build";
 import type {
   Blocklist,
+  BrowserExtensionScan,
+  BrowserExtensionStatus,
   DeviceCodeInfo,
   EngineStatus,
   FullState,
@@ -438,20 +440,49 @@ const EXTENSION_URL =
   "https://chromewebstore.google.com/detail/block/kfnhibndbkdjcplihjhbhdhclpbiocen";
 
 function CompanionsCard() {
+  const [extensionScan, setExtensionScan] = useState<BrowserExtensionScan | null>(null);
+  const [checkingExtensions, setCheckingExtensions] = useState(true);
+  const [extensionScanError, setExtensionScanError] = useState(false);
+
+  const checkExtensions = useCallback(async () => {
+    setCheckingExtensions(true);
+    setExtensionScanError(false);
+    try {
+      setExtensionScan(await invoke<BrowserExtensionScan>("get_browser_extensions"));
+    } catch {
+      setExtensionScanError(true);
+    } finally {
+      setCheckingExtensions(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkExtensions();
+  }, [checkExtensions]);
+
   return (
     <section className="card">
       <b>Works better together</b>
-      <div className="row companion">
+      <div className="row companion companion-intro">
         <div>
-          <span>Chrome extension</span>
+          <span>Browser protection</span>
           <p className="small-text">
-            Blocks inside the browser too, even on machines without this app.
+            Adds the custom block screen and protects full URLs inside your browser.
           </p>
         </div>
-        <button className="ghost pill" onClick={() => openUrl(EXTENSION_URL)}>
-          Get it
+        <button className="ghost small" disabled={checkingExtensions} onClick={checkExtensions}>
+          {checkingExtensions ? "Checking…" : "Check again"}
         </button>
       </div>
+      {extensionScanError && (
+        <p className="error small-text">Could not check browser extensions.</p>
+      )}
+      {!extensionScanError && extensionScan && extensionScan.browsers.length === 0 && (
+        <p className="small-text muted">No supported Chromium browser detected.</p>
+      )}
+      {extensionScan?.browsers.map((browser) => (
+        <BrowserExtensionRow key={browser.id} browser={browser} />
+      ))}
       <div className="row companion">
         <div>
           <span>yf, the command line</span>
@@ -462,6 +493,42 @@ function CompanionsCard() {
         <span className="small-text">coming soon</span>
       </div>
     </section>
+  );
+}
+
+function BrowserExtensionRow({ browser }: { browser: BrowserExtensionStatus }) {
+  const fullyEnabled = browser.profiles > 0 && browser.enabledProfiles === browser.profiles;
+  const partiallyEnabled = browser.enabledProfiles > 0 && !fullyEnabled;
+  const installedButDisabled = browser.installedProfiles > 0 && browser.enabledProfiles === 0;
+
+  let status = "Not installed";
+  const checkedProfiles = Math.max(1, browser.profiles);
+  let detail = `${checkedProfiles} browser profile${checkedProfiles === 1 ? "" : "s"} checked`;
+  if (fullyEnabled) {
+    status = "Installed";
+    detail = browser.profiles === 1 ? "Enabled in this profile" : `Enabled in all ${browser.profiles} profiles`;
+  } else if (partiallyEnabled) {
+    status = "Some profiles";
+    detail = `Enabled in ${browser.enabledProfiles} of ${browser.profiles} profiles`;
+  } else if (installedButDisabled) {
+    status = "Disabled";
+    detail = "Installed, but currently disabled";
+  }
+
+  return (
+    <div className="row companion browser-extension">
+      <div>
+        <span>{browser.name}</span>
+        <p className="small-text">{detail}</p>
+      </div>
+      {fullyEnabled ? (
+        <span className="extension-state installed">{status}</span>
+      ) : (
+        <button className="ghost pill" onClick={() => openUrl(EXTENSION_URL)}>
+          {status === "Not installed" ? "Install" : "Fix"}
+        </button>
+      )}
+    </div>
   );
 }
 

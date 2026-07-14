@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod browser_extensions;
 pub mod blocking;
 pub mod schedule;
 pub mod settings;
@@ -142,6 +143,12 @@ fn get_stats(app: AppHandle) -> stats::Stats {
     let state = app.state::<AppState>();
     let stats = state.stats.lock().unwrap();
     stats.clone()
+}
+
+/// Browser/profile-level installation status for the Chrome extension.
+#[tauri::command]
+fn get_browser_extensions() -> browser_extensions::BrowserExtensionScan {
+    browser_extensions::scan()
 }
 
 #[tauri::command]
@@ -458,6 +465,7 @@ pub fn run() {
             get_local_config,
             save_local_config,
             get_stats,
+            get_browser_extensions,
             setup_hosts_helper,
             finish_onboarding
         ])
