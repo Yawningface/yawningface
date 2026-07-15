@@ -345,17 +345,24 @@ function summarizeDays(schedule: string[]): string {
 }
 
 function ScheduleEditor({
+  initial,
   onSave,
   onCancel,
 }: {
+  initial?: Blocklist;
   onSave: (list: Blocklist) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [days, setDays] = useState<string[]>(["mon", "tue", "wed", "thu", "fri"]);
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("13:00");
-  const [websites, setWebsites] = useState(DEFAULT_WEBSITES.join("\n"));
+  const initialPeriod = initial?.metadata?.timePeriods?.[0];
+  const [name, setName] = useState(initial?.name ?? "");
+  const [days, setDays] = useState<string[]>(
+    initialPeriod?.schedule ?? ["mon", "tue", "wed", "thu", "fri"],
+  );
+  const [start, setStart] = useState(initialPeriod?.startTime ?? "09:00");
+  const [end, setEnd] = useState(initialPeriod?.endTime ?? "13:00");
+  const [websites, setWebsites] = useState(
+    (initial?.targets?.websites ?? DEFAULT_WEBSITES).join("\n"),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timing = describeSchedulePeriod({ startTime: start, endTime: end });
@@ -379,14 +386,23 @@ function ScheduleEditor({
     setError(null);
     try {
       await onSave({
-        id: `local-${Date.now().toString(36)}`,
+        ...initial,
+        id: initial?.id ?? `local-${Date.now().toString(36)}`,
         name: title,
         metadata: {
-          enabled: true,
-          devices: ["desktop"],
-          timePeriods: [{ startTime: start, endTime: end, schedule: days }],
+          ...initial?.metadata,
+          enabled: initial?.metadata?.enabled ?? true,
+          devices: initial?.metadata?.devices ?? ["desktop"],
+          timePeriods: [
+            { ...initialPeriod, startTime: start, endTime: end, schedule: days },
+            ...(initial?.metadata?.timePeriods?.slice(1) ?? []),
+          ],
         },
-        targets: { websites: sites, apps: [] },
+        targets: {
+          ...initial?.targets,
+          websites: sites,
+          apps: initial?.targets?.apps ?? [],
+        },
       });
     } catch (e) {
       setError(String(e));
@@ -441,7 +457,7 @@ function ScheduleEditor({
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button className="primary" disabled={busy} onClick={save}>
-          {busy ? "Saving…" : "Save schedule"}
+          {busy ? "Saving…" : initial ? "Save changes" : "Save schedule"}
         </button>
         <button className="ghost" onClick={onCancel}>
           Cancel
@@ -459,6 +475,7 @@ function ScheduledSessionsCard({
   onChanged: () => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const lists = info.config.blocklists ?? [];
   const enabledCount = lists.filter((list) => list.metadata?.enabled).length;
 
@@ -474,6 +491,11 @@ function ScheduledSessionsCard({
     setAdding(false);
   };
 
+  const update = async (index: number, list: Blocklist) => {
+    await saveConfig(lists.map((current, i) => (i === index ? list : current)));
+    setEditingIndex(null);
+  };
+
   const toggle = (i: number) =>
     saveConfig(
       lists.map((l, j) =>
@@ -483,7 +505,13 @@ function ScheduledSessionsCard({
       ),
     );
 
-  const remove = (i: number) => saveConfig(lists.filter((_, j) => j !== i));
+  const remove = async (i: number) => {
+    await saveConfig(lists.filter((_, j) => j !== i));
+    setEditingIndex((current) => {
+      if (current === null || current < i) return current;
+      return current === i ? null : current - 1;
+    });
+  };
 
   return (
     <details className="card schedule-manager">
@@ -500,8 +528,14 @@ function ScheduledSessionsCard({
       </summary>
       <div className="schedule-manager-body">
         <div className="schedule-manager-actions">
-          {!adding && (
-            <button className="ghost small" onClick={() => setAdding(true)}>
+          {!adding && editingIndex === null && (
+            <button
+              className="ghost small"
+              onClick={() => {
+                setEditingIndex(null);
+                setAdding(true);
+              }}
+            >
               + New schedule
             </button>
           )}
@@ -517,23 +551,43 @@ function ScheduledSessionsCard({
           const timing = period ? describeSchedulePeriod(period) : null;
           const duration = timing?.detail.split(" · ").pop();
           return (
-            <div className="schedule-row" key={l.id ?? i}>
-              <label className="checkbox schedule-main">
-                <input
-                  type="checkbox"
-                  checked={!!l.metadata?.enabled}
-                  onChange={() => toggle(i)}
+            <div className="schedule-list-item" key={l.id ?? i}>
+              <div className="schedule-row">
+                <label className="checkbox schedule-main">
+                  <input
+                    type="checkbox"
+                    checked={!!l.metadata?.enabled}
+                    onChange={() => toggle(i)}
+                  />
+                  <span className="schedule-name">{l.name}</span>
+                  <span className="small-text">
+                    {period
+                      ? `${summarizeDays(period.schedule ?? [])} · ${timing?.range} · ${duration}`
+                      : "always on"}
+                  </span>
+                </label>
+                <div className="schedule-row-actions">
+                  <button
+                    className="ghost small"
+                    onClick={() => {
+                      setAdding(false);
+                      setEditingIndex(editingIndex === i ? null : i);
+                    }}
+                  >
+                    {editingIndex === i ? "Cancel" : "Edit"}
+                  </button>
+                  <button className="ghost small" onClick={() => remove(i)}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+              {editingIndex === i && (
+                <ScheduleEditor
+                  initial={l}
+                  onSave={(updated) => update(i, updated)}
+                  onCancel={() => setEditingIndex(null)}
                 />
-                <span className="schedule-name">{l.name}</span>
-                <span className="small-text">
-                  {period
-                    ? `${summarizeDays(period.schedule ?? [])} · ${timing?.range} · ${duration}`
-                    : "always on"}
-                </span>
-              </label>
-              <button className="ghost small" onClick={() => remove(i)}>
-                Remove
-              </button>
+              )}
             </div>
           );
         })}
@@ -545,7 +599,7 @@ function ScheduledSessionsCard({
 
 const IS_MAC = navigator.userAgent.includes("Mac");
 const EXTENSION_URL =
-  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.8";
+  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.9";
 
 function CompanionsCard({ status }: { status: EngineStatus }) {
   const [extensionScan, setExtensionScan] = useState<BrowserExtensionScan | null>(null);

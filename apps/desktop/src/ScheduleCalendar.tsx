@@ -192,17 +192,16 @@ export default function ScheduleCalendar({ lists }: { lists: Blocklist[] }) {
   }, []);
 
   const rangeStart = useMemo(() => addDays(startOfDay(now), dayOffset), [dayOffset, now]);
-  const activeLists = useMemo(
-    () => lists.filter((list) => list.metadata?.enabled),
-    [lists],
-  );
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(rangeStart, index)),
     [rangeStart],
   );
   const daySegments = useMemo(
-    () => days.map((date) => positionSegments(segmentsForDay(activeLists, date))),
-    [activeLists, days],
+    () =>
+      days.map((date) =>
+        positionSegments(segmentsForDay(lists, date).filter((segment) => segment.enabled)),
+      ),
+    [lists, days],
   );
   const startsToday = dayOffset === 0;
   const hasBlocks = daySegments.some((segments) => segments.length > 0);
@@ -240,17 +239,6 @@ export default function ScheduleCalendar({ lists }: { lists: Blocklist[] }) {
           </button>
         </div>
       </div>
-
-      {activeLists.length > 0 && (
-        <div className="schedule-calendar-legend" aria-label="Schedule colors">
-          {activeLists.map((list, index) => (
-            <span className="calendar-legend-item" key={list.id ?? index}>
-              <i className={`calendar-swatch calendar-tone-${index % PALETTE_SIZE}`} aria-hidden="true" />
-              <span>{list.name}</span>
-            </span>
-          ))}
-        </div>
-      )}
 
       <div className="schedule-calendar-frame">
         <div className="schedule-calendar-head" aria-hidden="true">

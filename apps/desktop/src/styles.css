@@ -718,38 +718,6 @@ button:disabled {
   background: var(--hover-bg);
 }
 
-.schedule-calendar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-}
-
-.calendar-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  color: var(--ink-soft);
-  font-size: 11.5px;
-}
-
-.calendar-legend-item.disabled {
-  opacity: 0.5;
-}
-
-.calendar-legend-item em {
-  color: var(--ink-faint);
-  font-style: normal;
-}
-
-.calendar-swatch {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px var(--brand-ring);
-  flex: 0 0 auto;
-}
-
 .schedule-calendar-frame {
   overflow: hidden;
   border: 1px solid var(--rule-faint);
@@ -924,6 +892,18 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.schedule-list-item + .schedule-list-item {
+  border-top: 1px solid var(--rule-faint);
+  padding-top: 8px;
+}
+
+.schedule-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .schedule-main {
