@@ -38,6 +38,7 @@ test("desktop state drives rules and exceptions", async () => {
   assert.match(background, /state\?\.excludedDomains \?\? \[\]/);
   assert.match(rules, /excludedDomains: string\[\]/);
   assert.match(rules, /excludedRequestDomains/);
+  assert.match(rules, /&h=\\\\1/);
   assert.doesNotMatch(rules, /music\.youtube\.com/);
   assert.match(native, /type: "get_state"/);
   assert.match(native, /type: "unblock_request"/);
@@ -62,6 +63,6 @@ test("blocked page uses Goya and offers explicit working exits", async () => {
   assert.match(script, /by blocking schedule \"\$\{schedule\}\"/);
   assert.match(script, /by your working session/);
   assert.match(script, /chrome\.tabs\.remove\(tab\.id\)/);
-  assert.match(script, /Continue to \$\{domain\}/);
+  assert.match(script, /Continue to \$\{requestedHost\}/);
   assert.doesNotMatch(script, /about:blank/);
 });

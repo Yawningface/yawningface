@@ -26,11 +26,11 @@ export async function applyRules(
           redirect: {
             regexSubstitution:
               chrome.runtime.getURL("blocked.html") +
-              `?d=${encodeURIComponent(domain)}`,
+              `?d=${encodeURIComponent(domain)}&h=\\1`,
           },
         },
         condition: {
-          regexFilter: `^https?://([a-z0-9-]+\\.)*${domain.replace(/\./g, "\\.")}(:[0-9]+)?(/.*|\\?.*|$)`,
+          regexFilter: `^https?://((?:[a-z0-9-]+\\.)*${domain.replace(/\./g, "\\.")})(?::[0-9]+)?(?:/.*|\\?.*|$)`,
           ...(excludedRequestDomains.length ? { excludedRequestDomains } : {}),
           resourceTypes: [
             "main_frame" as chrome.declarativeNetRequest.ResourceType,

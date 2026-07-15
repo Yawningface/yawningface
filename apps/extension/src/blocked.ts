@@ -19,13 +19,15 @@ function describeBlock(reasons: string[]): {
 }
 
 async function render(): Promise<void> {
-  const domain = new URLSearchParams(location.search).get("d") ?? "";
+  const params = new URLSearchParams(location.search);
+  const domain = params.get("d") ?? "";
+  const requestedHost = params.get("h") ?? domain;
   const stored = await chrome.storage.local.get("desktopState");
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
   applyDesktopAppearance(state);
   let blockingEnded = false;
 
-  if (domain) $("domain").textContent = domain;
+  if (requestedHost) $("domain").textContent = requestedHost;
   const attemptResponse = domain
     ? ((await chrome.runtime.sendMessage({ type: "yf:attempt", domain })) as {
         ok?: boolean;
@@ -53,13 +55,13 @@ async function render(): Promise<void> {
     blockingEnded = true;
     $("block-reason").textContent = "by a session that has just ended";
     $("until").textContent = "Desktop is no longer blocking this website.";
-    $("close-tab").textContent = `Continue to ${domain}`;
+    $("close-tab").textContent = `Continue to ${requestedHost}`;
     $("unblock").setAttribute("hidden", "");
   }
 
   $("close-tab").addEventListener("click", async () => {
-    if (blockingEnded && domain) {
-      location.href = `https://${domain}`;
+    if (blockingEnded && requestedHost) {
+      location.href = `https://${requestedHost}`;
       return;
     }
     const tab = await chrome.tabs.getCurrent();
@@ -111,12 +113,12 @@ async function render(): Promise<void> {
     form.hidden = true;
     const note = $("unblocked-note");
     note.hidden = false;
-    note.textContent = `Letting ${domain} through for ${response.minutes} minutes. Your reason is in Insights.`;
+    note.textContent = `Letting ${requestedHost} through for ${response.minutes} minutes. Your reason is in Insights.`;
 
     // Desktop waits for its privileged hosts helper before acknowledging the
     // exception; this short beat lets Chrome discard the old DNS failure too.
     setTimeout(() => {
-      location.href = `https://${domain}`;
+      location.href = `https://${requestedHost}`;
     }, 1_200);
   });
 }
