@@ -315,23 +315,28 @@ function periodActive(period: unknown, minutesNow: number, day: string): boolean
   if (typeof period !== "object" || period === null) return true;
   const p = period as Record<string, unknown>;
 
-  // Day filter: accept "mon" / "monday" / "Mon" ... Empty = every day.
-  if (Array.isArray(p.schedule) && p.schedule.length > 0) {
-    const matchesDay = p.schedule.some(
-      (d) => typeof d === "string" && d.toLowerCase().startsWith(day),
+  // Accept "mon" / "monday" / "Mon" ... Empty = every day.
+  const matchesDay = (candidate: string) =>
+    !Array.isArray(p.schedule) ||
+    p.schedule.length === 0 ||
+    p.schedule.some(
+      (d) => typeof d === "string" && d.toLowerCase().startsWith(candidate),
     );
-    if (!matchesDay) return false;
-  }
 
   const start = parseHHMM(p.startTime);
   const end = parseHHMM(p.endTime);
   if (start === null || end === null) {
-    return true; // malformed times -> fail closed towards blocking
+    return matchesDay(day); // malformed times -> fail closed towards blocking
   }
-  if (start === end) return true; // degenerate: whole day
-  if (start < end) return minutesNow >= start && minutesNow < end;
-  // crosses midnight, e.g. 22:00 -> 07:00
-  return minutesNow >= start || minutesNow < end;
+  if (start === end) return matchesDay(day); // equal times = whole selected day
+  if (start < end) return matchesDay(day) && minutesNow >= start && minutesNow < end;
+  if (minutesNow >= start) return matchesDay(day);
+  if (minutesNow < end) {
+    const index = DAY_KEYS.indexOf(day as DayOfWeek);
+    const previousDay = DAY_KEYS[(index + DAY_KEYS.length - 1) % DAY_KEYS.length];
+    return matchesDay(previousDay);
+  }
+  return false;
 }
 
 function metadataActive(meta: Record<string, unknown>, minutesNow: number, day: string): boolean {

@@ -43,7 +43,8 @@ If you change anything here, read [Evolving the contract](#evolving-the-contract
   `timeZone` is informational in v1.
 - `startTime` is inclusive, `endTime` exclusive. `startTime === endTime`
   means the whole day. An end before the start crosses midnight
-  (`22:00 → 07:00` blocks late evening and early morning on each scheduled day).
+  (`22:00 → 07:00` on Friday begins Friday evening and ends Saturday morning).
+  Selected days always identify the day on which an overnight window starts.
 - Malformed times **fail closed towards blocking** - a broken document should
   never silently unblock anything.
 - Websites are bare domains; clients match subdomains too and normalize

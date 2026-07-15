@@ -18,11 +18,11 @@
     "storage",
     "alarms",
     "declarativeNetRequest",
-    "tabs",
     "identity"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "http://*/*",
+    "https://*/*"
   ],
   "web_accessible_resources": [
     {
@@ -32,7 +32,8 @@
         "fonts/*"
       ],
       "matches": [
-        "<all_urls>"
+        "http://*/*",
+        "https://*/*"
       ]
     }
   ],

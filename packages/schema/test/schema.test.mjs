@@ -112,6 +112,27 @@ test("parity: midnight crossing", () => {
   assert.equal(evaluateAt(config, 12 * 60, "mon", "desktop").domains.size, 0);
 });
 
+test("parity: midnight crossing is anchored to its start day", () => {
+  const config = {
+    blocklists: [
+      {
+        name: "Friday night",
+        metadata: {
+          enabled: true,
+          timePeriods: [
+            { startTime: "23:00", endTime: "09:00", schedule: ["fri"] },
+          ],
+        },
+        targets: { websites: ["youtube.com"] },
+      },
+    ],
+  };
+  assert.ok(evaluateAt(config, 23 * 60 + 30, "fri", "desktop").domains.size > 0);
+  assert.ok(evaluateAt(config, 8 * 60, "sat", "desktop").domains.size > 0);
+  assert.equal(evaluateAt(config, 8 * 60, "fri", "desktop").domains.size, 0);
+  assert.equal(evaluateAt(config, 10 * 60, "sat", "desktop").domains.size, 0);
+});
+
 test("equal start and end means the whole day", () => {
   const config = {
     blocklists: [

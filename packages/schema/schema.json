@@ -56,7 +56,7 @@
         "endTime": { "$ref": "#/$defs/hhmm", "description": "Exclusive end. Equal to startTime = whole day; earlier than startTime = crosses midnight." },
         "schedule": {
           "type": "array",
-          "description": "Days this window applies to. Empty = every day.",
+          "description": "Days this window starts on. For an overnight window, blocking continues into the following morning. Empty = every day.",
           "items": { "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }
         }
       }

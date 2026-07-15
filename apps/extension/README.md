@@ -1,5 +1,9 @@
 # apps/extension - yawningface for Chrome
 
+A detailed implementation, desktop-bridge, privacy, testing, and distribution
+contract lives in [SPEC.md](./SPEC.md). Manual Chrome and Edge instructions are
+in [INSTALL.md](./INSTALL.md).
+
 A client of the contract, not a product of its own. It evaluates the same
 [`@yawningface/schema`](../../packages/schema/README.md) document the desktop
 app, the phone and the `yf` CLI evaluate, then compiles the result into
