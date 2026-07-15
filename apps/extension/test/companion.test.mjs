@@ -34,6 +34,9 @@ test("desktop state drives rules and exceptions", async () => {
   assert.doesNotMatch(background, /startSession|evaluate\(/);
   assert.match(rules, /declarativeNetRequest\.updateDynamicRules/);
   assert.match(rules, /blocked\.html/);
+  assert.match(rules, /"youtube\.com": \["music\.youtube\.com"\]/);
+  assert.match(rules, /!explicitlyBlocked\.has\(exception\)/);
+  assert.match(rules, /excludedRequestDomains/);
   assert.match(native, /type: "get_state"/);
   assert.match(native, /type: "unblock_request"/);
   assert.match(native, /appearance\?: "system" \| "light" \| "dark"/);
