@@ -234,8 +234,26 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         }
     }
 
+    // Browser exceptions are desktop-owned receipts created only after the
+    // extension submits a written reason. They bend this one domain for ten
+    // minutes without weakening the schedule or working session itself.
+    let browser_exemptions = crate::native_messaging::active_exemptions();
+    block_set
+        .domains
+        .retain(|domain| !browser_exemptions.contains(domain));
+
     // 4. Apply blocking.
     apply_block_set(app, &block_set)?;
+    crate::native_messaging::write_bridge_state(
+        app,
+        &block_set.domains,
+        &block_set.active_lists,
+        if session.is_running() {
+            session.until.clone()
+        } else {
+            None
+        },
+    )?;
 
     // 5. Flush events + update device heartbeat.
     if let Some(t) = &tokens {

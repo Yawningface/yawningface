@@ -1,47 +1,35 @@
-import {
-  currentDomains,
-  load,
-  sessionRunning,
-  todayKey,
-  unblocksToday,
-} from "./engine";
+import type { DesktopState } from "./native";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-function humanMinutes(min: number): string {
-  if (min < 60) return `${min} m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m ? `${h} h ${m} m` : `${h} h`;
+function humanMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} m` : `${hours} h`;
 }
 
 async function render(): Promise<void> {
   const domain = new URLSearchParams(location.search).get("d") ?? "";
-  const { config, cloudConfig, session, days, attempts, unblocks } = await load();
+  const stored = await chrome.storage.local.get(["desktopState", "attempts"]);
+  const state = (stored.desktopState as DesktopState | undefined) ?? null;
+  const attempts =
+    (stored.attempts as Record<string, number> | undefined) ?? {};
 
-  if (domain) {
-    $("domain").textContent = domain;
-    // Count the attempt, so the number below is real rather than decorative.
-    await chrome.runtime.sendMessage({ type: "yf:attempt", domain });
-  }
+  if (domain) $("domain").textContent = domain;
+  const attemptResponse = domain
+    ? ((await chrome.runtime.sendMessage({ type: "yf:attempt", domain })) as {
+        ok?: boolean;
+        attempts?: number;
+      })
+    : {};
 
-  const { reasons } = currentDomains(
-    config,
-    session,
-    unblocks,
-    new Date(),
-    cloudConfig,
-  );
-  const running = sessionRunning(session);
+  $("block-reason").textContent = state?.reasons.length
+    ? `by ${state.reasons.join(", ")}`
+    : "by the desktop app";
 
-  $("reason").textContent = running
-    ? "during your working session"
-    : reasons.length > 0
-      ? `by ${reasons.join(", ")}`
-      : "right now";
-
-  if (running && session.until) {
-    const until = new Date(session.until).toLocaleTimeString([], {
+  if (state?.sessionUntil) {
+    const until = new Date(state.sessionUntil).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -51,62 +39,76 @@ async function render(): Promise<void> {
   }
 
   $("focused").textContent = humanMinutes(
-    Math.round((days[todayKey()] ?? 0) / 60),
+    Math.round((state?.focusedTodaySeconds ?? 0) / 60),
   );
-  $("attempts").textContent = String((attempts[domain] ?? 0) + 1);
-  $("unblocks").textContent = String(unblocksToday(unblocks));
+  $("attempts").textContent = String(
+    attemptResponse.attempts ?? attempts[domain] ?? 0,
+  );
 
-  // "Keep me out" is the loud one; the way out is quiet but never hidden.
+  if (attemptResponse.ok === false) {
+    $("block-reason").textContent = "by a session that has just ended";
+    $("until").textContent =
+      "Refresh the original tab. Desktop is no longer blocking this website.";
+    $("unblock").setAttribute("hidden", "");
+  }
+  $("unblocks").textContent = String(state?.unblocksToday ?? 0);
+
   $("keep").addEventListener("click", () => {
-    // Nowhere sensible to go but away from here.
     location.href = "about:blank";
   });
 
-  const reasonForm = $("unblock-reason") as HTMLFormElement;
-  const reasonInput = $("reason") as HTMLTextAreaElement;
+  const form = $("unblock-reason") as HTMLFormElement;
+  const excuse = $("excuse") as HTMLTextAreaElement;
+  const submit = $("submit-unblock") as HTMLButtonElement;
+  const error = $("unblock-error");
 
   $("unblock").addEventListener("click", () => {
     if (!domain) return;
-    reasonForm.hidden = false;
+    form.hidden = false;
     $("unblock").setAttribute("hidden", "");
-    reasonInput.focus();
+    excuse.focus();
   });
 
   $("cancel-unblock").addEventListener("click", () => {
-    reasonForm.hidden = true;
+    form.hidden = true;
     $("unblock").removeAttribute("hidden");
-    reasonInput.value = "";
+    excuse.value = "";
+    error.hidden = true;
   });
 
-  reasonForm.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!domain || !reasonInput.reportValidity()) return;
+    if (!domain || !excuse.reportValidity()) return;
+
+    submit.disabled = true;
+    submit.textContent = "Asking desktop...";
+    error.hidden = true;
     const response = (await chrome.runtime.sendMessage({
       type: "yf:unblock",
       domain,
-      reason: reasonInput.value,
+      reason: excuse.value,
     })) as { ok: boolean; minutes?: number; error?: string };
+    submit.disabled = false;
+    submit.textContent = "Unblock for 10 minutes";
+
     if (!response.ok || !response.minutes) {
-      reasonInput.setCustomValidity(response.error ?? "Could not unblock this site.");
-      reasonInput.reportValidity();
+      error.textContent = response.error ?? "Desktop could not create the exception.";
+      error.hidden = false;
       return;
     }
 
-    const minutes = response.minutes;
-    reasonForm.hidden = true;
-    reasonInput.value = "";
-
+    form.hidden = true;
     const note = $("unblocked-note");
     note.hidden = false;
-    note.textContent = `Letting ${domain} through for ${minutes} minutes. Your reason is written down.`;
+    note.textContent = `Letting ${domain} through for ${response.minutes} minutes. Your reason is in Insights.`;
+    $("unblocks").textContent = String((state?.unblocksToday ?? 0) + 1);
 
-    // Give the rules a moment to update, then go where you were going.
+    // Desktop waits for its privileged hosts helper before acknowledging the
+    // exception; this short beat lets Chrome discard the old DNS failure too.
     setTimeout(() => {
       location.href = `https://${domain}`;
-    }, 900);
+    }, 1_200);
   });
-
-  reasonInput.addEventListener("input", () => reasonInput.setCustomValidity(""));
 }
 
 void render();

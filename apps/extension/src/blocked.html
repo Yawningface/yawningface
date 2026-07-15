@@ -10,16 +10,17 @@
       <!-- Odysseus, lashed to the mast, sailing past the Sirens. The whole
            product in one picture: the man who knew he would cave, and made
            caving impossible. -->
-      <div class="blocked-art" role="img"
-           aria-label="Odysseus bound to the mast as his ship passes the Sirens"></div>
+      <div
+        class="blocked-art"
+        role="img"
+        aria-label="Odysseus bound to the mast as his ship passes the Sirens"
+      ></div>
 
       <div class="blocked-body">
-        <h1 class="blocked-word">
-          You asked me to stop you.
-        </h1>
+        <h1 class="blocked-word">You asked me to stop you.</h1>
         <p class="blocked-why">
           <span class="blocked-domain" id="domain">this site</span>
-          is blocked <span id="reason">right now</span>.
+          is blocked <span id="block-reason">right now</span>.
         </p>
         <p class="muted" id="until"></p>
 
@@ -28,18 +29,25 @@
           <button class="link" id="unblock">Unblock anyway</button>
         </div>
         <form class="unblock-reason" id="unblock-reason" hidden>
-          <label for="reason">Why do you need access right now?</label>
+          <p class="unblock-principle">Bend, don't break.</p>
+          <label for="excuse">Why do you need access right now?</label>
           <textarea
-            id="reason"
+            id="excuse"
             rows="4"
             maxlength="500"
-            placeholder="I need LinkedIn to check whether they replied about the job…"
+            placeholder="I need LinkedIn to check whether they replied about the job..."
             required
           ></textarea>
+          <p class="small-text">
+            Your reason will be written to desktop Insights.
+          </p>
+          <p class="unblock-error" id="unblock-error" hidden></p>
           <div class="unblock-reason-actions">
-            <button class="link" type="button" id="cancel-unblock">Cancel</button>
+            <button class="link" type="button" id="cancel-unblock">
+              Cancel
+            </button>
             <button class="primary" type="submit" id="submit-unblock">
-              Unblock for 5 minutes
+              Unblock for 10 minutes
             </button>
           </div>
         </form>

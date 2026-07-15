@@ -14,7 +14,26 @@ interface DesktopEvent {
   occurredAt: string;
 }
 
+export interface DesktopState {
+  available: boolean;
+  domains: string[];
+  reasons: string[];
+  sessionUntil: string | null;
+  focusedTodaySeconds: number;
+  unblocksToday: number;
+  updatedAt: string;
+}
+
+export interface DesktopUnblockResponse {
+  ok: boolean;
+  minutes?: number;
+  until?: string;
+  error?: string;
+}
+
 let flushing: Promise<void> | null = null;
+let statePort: chrome.runtime.Port | null = null;
+let statePoll: ReturnType<typeof setInterval> | null = null;
 
 async function getQueue(): Promise<DesktopEvent[]> {
   const stored = await chrome.storage.local.get(QUEUE_KEY);
@@ -29,19 +48,100 @@ async function append(event: DesktopEvent): Promise<void> {
   await chrome.storage.local.set({ [QUEUE_KEY]: queue.slice(-MAX_QUEUE) });
 }
 
-function send(event: DesktopEvent): Promise<boolean> {
+function sendNative<T>(message: object): Promise<T | null> {
   return new Promise((resolve) => {
     try {
-      chrome.runtime.sendNativeMessage(HOST, event, (response) => {
+      chrome.runtime.sendNativeMessage(HOST, message, (response) => {
         // Reading lastError inside the callback suppresses Chrome's noisy
         // unchecked-error log when the desktop app is not installed yet.
         const error = chrome.runtime.lastError;
-        resolve(!error && response?.ok === true);
+        resolve(error ? null : (response as T));
       });
     } catch {
-      resolve(false);
+      resolve(null);
     }
   });
+}
+
+async function send(event: DesktopEvent): Promise<boolean> {
+  const response = await sendNative<{ ok?: boolean }>(event);
+  return response?.ok === true;
+}
+
+export async function getDesktopState(): Promise<DesktopState | null> {
+  const response = await sendNative<{ ok?: boolean; state?: DesktopState }>({
+    protocolVersion: 1,
+    type: "get_state",
+  });
+  return response?.ok && response.state?.available ? response.state : null;
+}
+
+/** Keep one native connection open while Chrome is running. Besides avoiding
+ * a process launch for every refresh, the port keeps the MV3 worker alive so
+ * desktop-started sessions reach DNR rules within a couple of seconds. */
+export function watchDesktopState(
+  onState: (state: DesktopState | null) => void,
+): () => void {
+  let stopped = false;
+
+  const connect = () => {
+    if (stopped || statePort) return;
+    try {
+      const port = chrome.runtime.connectNative(HOST);
+      statePort = port;
+      const request = () => {
+        try {
+          port.postMessage({ protocolVersion: 1, type: "get_state" });
+        } catch {
+          // onDisconnect owns cleanup and reconnect.
+        }
+      };
+      port.onMessage.addListener((message) => {
+        onState(message?.ok && message.state?.available ? message.state : null);
+      });
+      port.onDisconnect.addListener(() => {
+        // Read lastError to acknowledge Chrome's native-host error.
+        void chrome.runtime.lastError;
+        if (statePort === port) statePort = null;
+        if (statePoll) clearInterval(statePoll);
+        statePoll = null;
+        onState(null);
+        if (!stopped) setTimeout(connect, 2_000);
+      });
+      request();
+      statePoll = setInterval(request, 2_000);
+    } catch {
+      statePort = null;
+      if (!stopped) setTimeout(connect, 2_000);
+    }
+  };
+
+  connect();
+  return () => {
+    stopped = true;
+    if (statePoll) clearInterval(statePoll);
+    statePoll = null;
+    statePort?.disconnect();
+    statePort = null;
+  };
+}
+
+export async function requestDesktopUnblock(
+  domain: string,
+  reason: string,
+): Promise<DesktopUnblockResponse> {
+  const response = await sendNative<DesktopUnblockResponse>({
+    protocolVersion: 1,
+    eventId: crypto.randomUUID(),
+    type: "unblock_request",
+    domain,
+    reason,
+    occurredAt: new Date().toISOString(),
+  });
+  return response ?? {
+    ok: false,
+    error: "The yawningface desktop app is not connected.",
+  };
 }
 
 async function flushNow(): Promise<void> {

@@ -109,7 +109,8 @@ export default function Insights() {
     ins.totalMinutes === 0 &&
     ins.sessions === 0 &&
     ins.topSites.length === 0 &&
-    ins.topApps.length === 0
+    ins.topApps.length === 0 &&
+    ins.recentUnblocks.length === 0
   ) {
     return (
       <section className="page">
@@ -216,6 +217,37 @@ export default function Insights() {
                   {a.app}
                   <span className="app-count">{a.count}</span>
                 </span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card wide">
+          <div>
+            <b>Times you bent the block</b>
+            <p className="muted">
+              Temporary access you chose, with the reason you gave yourself.
+            </p>
+          </div>
+          {ins.recentUnblocks.length === 0 ? (
+            <p className="small-text">None yet.</p>
+          ) : (
+            <div className="unblock-log">
+              {ins.recentUnblocks.map((event, index) => (
+                <div className="unblock-log-row" key={`${event.occurredAt}-${event.domain}-${index}`}>
+                  <div>
+                    <b>{event.domain}</b>
+                    <p>{event.reason}</p>
+                  </div>
+                  <span className="small-text">
+                    {event.minutes} min / {new Date(event.occurredAt).toLocaleString([], {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
               ))}
             </div>
           )}

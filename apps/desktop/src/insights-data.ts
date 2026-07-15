@@ -40,6 +40,7 @@ export interface Insights {
   topSites: { domain: string; count: number }[];
   appsBlocked: number;
   sitesBlocked: number;
+  recentUnblocks: { domain: string; reason: string; minutes: number; occurredAt: string }[];
   cancellationsToday: number;
   cancellationsLast14: number;
   cancellationsTotal: number;
@@ -219,6 +220,10 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
     .slice(0, 10)
     .map(([domain, count]) => ({ domain, count }));
 
+  const recentUnblocks = [...(stats.siteUnblocks ?? [])]
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+    .slice(0, 10);
+
   const activeDays = activeKeys.length;
 
   return {
@@ -237,6 +242,7 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
     topSites,
     appsBlocked,
     sitesBlocked,
+    recentUnblocks,
     cancellationsToday: cancellationsOf(dayKey(today0)),
     cancellationsLast14: last14.reduce((sum, day) => sum + day.cancellations, 0),
     cancellationsTotal,

@@ -16,12 +16,20 @@ export interface DayStat {
   sessions: number;
   appsBlocked: number;
   sitesBlocked: number;
+  siteUnblocks: number;
   cancellations: number;
 }
 
 export interface SiteAttempt {
   occurredAt: string;
   domain: string;
+}
+
+export interface SiteUnblock {
+  occurredAt: string;
+  domain: string;
+  reason: string;
+  minutes: number;
 }
 
 export interface ActivitySpan {
@@ -46,6 +54,7 @@ export interface Stats {
   activity: ActivitySpan[];
   cancellations: Cancellation[];
   siteAttempts: SiteAttempt[];
+  siteUnblocks: SiteUnblock[];
 }
 
 export interface EngineStatus {

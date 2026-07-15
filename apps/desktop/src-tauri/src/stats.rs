@@ -37,6 +37,15 @@ pub struct SiteAttempt {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
+pub struct SiteUnblock {
+    pub occurred_at: String,
+    pub domain: String,
+    pub reason: String,
+    pub minutes: u32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct DayStat {
     /// Seconds during which something was actually blocked.
     pub focus_seconds: u64,
@@ -46,6 +55,8 @@ pub struct DayStat {
     pub apps_blocked: u32,
     /// Top-level browser navigations stopped by the extension.
     pub sites_blocked: u32,
+    /// Deliberate, reason-gated temporary website exceptions.
+    pub site_unblocks: u32,
     /// Times the user manually deactivated blocking before it ended itself.
     pub cancellations: u32,
 }
@@ -69,6 +80,8 @@ pub struct Stats {
     pub cancellations: Vec<Cancellation>,
     /// Recent website refusals, retained for future period filtering.
     pub site_attempts: Vec<SiteAttempt>,
+    /// Recent bend-not-break exceptions, including the user's own reason.
+    pub site_unblocks: Vec<SiteUnblock>,
     /// Native messages are at-least-once. Remember processed IDs so a reply
     /// lost between the host and Chrome cannot count the same visit twice.
     pub processed_browser_events: Vec<String>,
@@ -143,6 +156,20 @@ impl Stats {
         self.today_mut().sessions += 1;
     }
 
+    pub fn focused_today_seconds(&self) -> u64 {
+        self.days
+            .get(&today())
+            .map(|day| day.focus_seconds)
+            .unwrap_or_default()
+    }
+
+    pub fn unblocks_today(&self) -> u32 {
+        self.days
+            .get(&today())
+            .map(|day| day.site_unblocks)
+            .unwrap_or_default()
+    }
+
     pub fn record_app_blocked(&mut self, app: &str) {
         self.today_mut().apps_blocked += 1;
         *self.blocked_apps.entry(app.to_string()).or_default() += 1;
@@ -179,6 +206,34 @@ impl Stats {
 
         let cutoff = Utc::now() - chrono::Duration::days(120);
         self.site_attempts.retain(|event| {
+            DateTime::parse_from_rfc3339(&event.occurred_at)
+                .map(|time| time.with_timezone(&Utc) >= cutoff)
+                .unwrap_or(false)
+        });
+    }
+
+    pub fn record_site_unblocked(
+        &mut self,
+        event_id: &str,
+        domain: &str,
+        reason: &str,
+        minutes: u32,
+        occurred_at: &str,
+    ) {
+        if !self.claim_browser_event(event_id) {
+            return;
+        }
+        let day = self.days.entry(local_day(occurred_at)).or_default();
+        day.site_unblocks = day.site_unblocks.saturating_add(1);
+        self.site_unblocks.push(SiteUnblock {
+            occurred_at: occurred_at.to_string(),
+            domain: domain.to_string(),
+            reason: reason.to_string(),
+            minutes,
+        });
+
+        let cutoff = Utc::now() - chrono::Duration::days(120);
+        self.site_unblocks.retain(|event| {
             DateTime::parse_from_rfc3339(&event.occurred_at)
                 .map(|time| time.with_timezone(&Utc) >= cutoff)
                 .unwrap_or(false)
@@ -254,5 +309,26 @@ mod tests {
         stats.record_site_blocked("event-1", "twitter.com", "2026-07-15T16:00:00Z");
         assert_eq!(stats.blocked_sites.get("twitter.com"), Some(&1));
         assert_eq!(stats.site_attempts.len(), 1);
+    }
+
+    #[test]
+    fn reason_gated_unblocks_are_counted_once() {
+        let mut stats = Stats::default();
+        stats.record_site_unblocked(
+            "unblock-1",
+            "linkedin.com",
+            "Reply to a recruiter",
+            10,
+            "2026-07-15T16:00:00Z",
+        );
+        stats.record_site_unblocked(
+            "unblock-1",
+            "linkedin.com",
+            "Reply to a recruiter",
+            10,
+            "2026-07-15T16:00:00Z",
+        );
+        assert_eq!(stats.site_unblocks.len(), 1);
+        assert_eq!(stats.site_unblocks[0].reason, "Reply to a recruiter");
     }
 }

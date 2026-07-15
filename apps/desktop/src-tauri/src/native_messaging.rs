@@ -1,12 +1,12 @@
 //! Local bridge between the Chromium extension and desktop Insights.
 //!
 //! Chrome launches this same executable as a Native Messaging host. The host
-//! validates one small event, writes it atomically to a per-user spool, replies
-//! to Chrome, and exits. The normal desktop process drains that spool into its
-//! on-device stats. Keeping the hand-off file-based means attempts survive when
-//! the desktop window (or the whole desktop process) is closed.
+//! validates small messages and writes events atomically to a per-user spool.
+//! A long-lived connection reflects desktop state quickly; one-shot messages
+//! remain durable because the normal desktop process drains the spool into its
+//! on-device stats. Attempts therefore survive UI restarts and lost replies.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -26,6 +26,19 @@ pub const EXTENSION_IDS: [&str; 2] = [GITHUB_EXTENSION_ID, STORE_EXTENSION_ID];
 const PROTOCOL_VERSION: u32 = 1;
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 const MAX_IMPORTED_DOMAINS: usize = 2_000;
+pub const UNBLOCK_MINUTES: u32 = 10;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BrowserBridgeState {
+    pub available: bool,
+    pub domains: Vec<String>,
+    pub reasons: Vec<String>,
+    pub session_until: Option<String>,
+    pub focused_today_seconds: u64,
+    pub unblocks_today: u32,
+    pub updated_at: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,14 +51,19 @@ pub struct BrowserEvent {
     pub domain: Option<String>,
     #[serde(default)]
     pub counts: BTreeMap<String, u32>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub minutes: Option<u32>,
     pub occurred_at: String,
     pub extension_id: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct IncomingEvent {
+struct IncomingMessage {
     protocol_version: u32,
+    #[serde(default)]
     event_id: String,
     #[serde(rename = "type")]
     event_type: String,
@@ -54,7 +72,19 @@ struct IncomingEvent {
     #[serde(default)]
     counts: BTreeMap<String, u32>,
     #[serde(default)]
+    reason: Option<String>,
+    #[serde(default)]
     occurred_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserExemption {
+    pub event_id: String,
+    pub domain: String,
+    pub reason: String,
+    pub occurred_at: String,
+    pub until: String,
 }
 
 /// Chrome supplies the calling extension origin as an argument when it starts
@@ -77,22 +107,25 @@ pub fn run_if_requested(args: &[String]) -> Option<i32> {
         }
     };
 
-    let result = read_native_message()
-        .and_then(|incoming| validate_event(incoming, extension_id))
-        .and_then(|event| {
-            let event_id = event.event_id.clone();
-            persist_event(&event)?;
-            Ok(event_id)
-        });
-
-    match result {
-        Ok(event_id) => {
-            let _ = write_native_message(&json!({ "ok": true, "eventId": event_id }));
-            Some(0)
-        }
-        Err(error) => {
-            let _ = write_native_message(&json!({ "ok": false, "error": error }));
-            Some(1)
+    loop {
+        match read_native_message() {
+            Ok(Some(incoming)) => match handle_message(incoming, extension_id) {
+                Ok(response) => {
+                    if write_native_message(&response).is_err() {
+                        return Some(1);
+                    }
+                }
+                Err(error) => {
+                    if write_native_message(&json!({ "ok": false, "error": error })).is_err() {
+                        return Some(1);
+                    }
+                }
+            },
+            Ok(None) => return Some(0),
+            Err(error) => {
+                let _ = write_native_message(&json!({ "ok": false, "error": error }));
+                return Some(1);
+            }
         }
     }
 }
@@ -104,11 +137,13 @@ fn extension_id_from_origin(origin: &str) -> Option<&'static str> {
     })
 }
 
-fn read_native_message() -> Result<IncomingEvent, String> {
+fn read_native_message() -> Result<Option<IncomingMessage>, String> {
     let mut length = [0_u8; 4];
-    std::io::stdin()
-        .read_exact(&mut length)
-        .map_err(|e| format!("Could not read message length: {e}"))?;
+    match std::io::stdin().read_exact(&mut length) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
+        Err(error) => return Err(format!("Could not read message length: {error}")),
+    }
     let length = u32::from_le_bytes(length) as usize;
     if length == 0 || length > MAX_MESSAGE_BYTES {
         return Err("Native message has an invalid size.".into());
@@ -118,7 +153,9 @@ fn read_native_message() -> Result<IncomingEvent, String> {
     std::io::stdin()
         .read_exact(&mut body)
         .map_err(|e| format!("Could not read native message: {e}"))?;
-    serde_json::from_slice(&body).map_err(|e| format!("Invalid native message JSON: {e}"))
+    serde_json::from_slice(&body)
+        .map(Some)
+        .map_err(|e| format!("Invalid native message JSON: {e}"))
 }
 
 fn write_native_message(value: &serde_json::Value) -> Result<(), String> {
@@ -132,17 +169,34 @@ fn write_native_message(value: &serde_json::Value) -> Result<(), String> {
         .map_err(|e| format!("Could not write native response: {e}"))
 }
 
-fn validate_event(raw: IncomingEvent, extension_id: &str) -> Result<BrowserEvent, String> {
+fn handle_message(raw: IncomingMessage, extension_id: &str) -> Result<serde_json::Value, String> {
     if raw.protocol_version != PROTOCOL_VERSION {
         return Err("Unsupported yawningface bridge protocol.".into());
     }
-    if raw.event_id.is_empty()
-        || raw.event_id.len() > 100
-        || !raw
-            .event_id
+
+    match raw.event_type.as_str() {
+        "get_state" => Ok(json!({ "ok": true, "state": read_bridge_state() })),
+        "site_blocked" | "site_counts" => {
+            let event = validate_event(raw, extension_id)?;
+            let event_id = event.event_id.clone();
+            persist_event(&event)?;
+            Ok(json!({ "ok": true, "eventId": event_id }))
+        }
+        "unblock_request" => handle_unblock_request(raw, extension_id),
+        _ => Err("Unsupported browser message type.".into()),
+    }
+}
+
+fn valid_event_id(event_id: &str) -> bool {
+    !event_id.is_empty()
+        && event_id.len() <= 100
+        && event_id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
-    {
+}
+
+fn validate_event(raw: IncomingMessage, extension_id: &str) -> Result<BrowserEvent, String> {
+    if !valid_event_id(&raw.event_id) {
         return Err("Invalid browser event identifier.".into());
     }
 
@@ -180,9 +234,73 @@ fn validate_event(raw: IncomingEvent, extension_id: &str) -> Result<BrowserEvent
         event_type: raw.event_type,
         domain,
         counts,
+        reason: None,
+        minutes: None,
         occurred_at,
         extension_id: extension_id.to_string(),
     })
+}
+
+fn handle_unblock_request(
+    raw: IncomingMessage,
+    extension_id: &str,
+) -> Result<serde_json::Value, String> {
+    let state = read_bridge_state();
+    let (domain, reason) = validate_unblock_request(&raw, &state)?;
+
+    // Desktop time is authoritative for the exception window. An extension
+    // message can describe an event, but it cannot mint a longer exemption by
+    // sending a timestamp in the future.
+    let occurred = Utc::now();
+
+    let exemption = persist_exemption(BrowserExemption {
+        event_id: raw.event_id.clone(),
+        domain: domain.clone(),
+        reason: reason.clone(),
+        occurred_at: occurred.to_rfc3339(),
+        until: (occurred + chrono::Duration::minutes(UNBLOCK_MINUTES as i64)).to_rfc3339(),
+    })?;
+    if let Err(error) = apply_exemption_now(&domain) {
+        remove_exemption(&raw.event_id);
+        return Err(error);
+    }
+    persist_event(&BrowserEvent {
+        protocol_version: PROTOCOL_VERSION,
+        event_id: raw.event_id.clone(),
+        event_type: "site_unblocked".into(),
+        domain: Some(domain.clone()),
+        counts: BTreeMap::new(),
+        reason: Some(reason),
+        minutes: Some(UNBLOCK_MINUTES),
+        occurred_at: occurred.to_rfc3339(),
+        extension_id: extension_id.to_string(),
+    })?;
+
+    Ok(json!({
+        "ok": true,
+        "eventId": raw.event_id,
+        "minutes": UNBLOCK_MINUTES,
+        "until": exemption.until
+    }))
+}
+
+fn validate_unblock_request(
+    raw: &IncomingMessage,
+    state: &BrowserBridgeState,
+) -> Result<(String, String), String> {
+    if !valid_event_id(&raw.event_id) {
+        return Err("Invalid browser event identifier.".into());
+    }
+    let domain = normalize_domain(raw.domain.as_deref().unwrap_or_default())
+        .ok_or("Invalid domain to unblock.")?;
+    if !state.available || !state.domains.iter().any(|active| active == &domain) {
+        return Err("Desktop is not currently blocking this website.".into());
+    }
+    let reason = raw.reason.as_deref().unwrap_or_default().trim().to_string();
+    if reason.is_empty() || reason.chars().count() > 500 {
+        return Err("Write a reason of 500 characters or fewer.".into());
+    }
+    Ok((domain, reason))
 }
 
 fn normalize_domain(value: &str) -> Option<String> {
@@ -226,6 +344,162 @@ fn config_root() -> PathBuf {
 
 fn events_dir() -> PathBuf {
     config_root().join("browser-events")
+}
+
+fn exemptions_dir() -> PathBuf {
+    config_root().join("browser-exemptions")
+}
+
+fn bridge_state_path() -> PathBuf {
+    config_root().join("browser-state.json")
+}
+
+fn read_bridge_state() -> BrowserBridgeState {
+    std::fs::read(bridge_state_path())
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+pub fn write_bridge_state(
+    app: &AppHandle,
+    domains: &BTreeSet<String>,
+    reasons: &[String],
+    session_until: Option<String>,
+) -> Result<(), String> {
+    let (focused_today_seconds, unblocks_today) = {
+        let state = app.state::<AppState>();
+        let stats = state.stats.lock().unwrap();
+        (stats.focused_today_seconds(), stats.unblocks_today())
+    };
+    let state = BrowserBridgeState {
+        available: true,
+        domains: domains.iter().cloned().collect(),
+        reasons: reasons.to_vec(),
+        session_until,
+        focused_today_seconds,
+        unblocks_today,
+        updated_at: Utc::now().to_rfc3339(),
+    };
+    save_json(&bridge_state_path(), &state)
+}
+
+fn persist_exemption(exemption: BrowserExemption) -> Result<BrowserExemption, String> {
+    let dir = exemptions_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let destination = dir.join(format!("{}.json", exemption.event_id));
+    if destination.is_file() {
+        return std::fs::read(&destination)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string()));
+    }
+    let temporary = dir.join(format!(
+        "{}.json.{}.tmp",
+        exemption.event_id,
+        std::process::id()
+    ));
+    let bytes = serde_json::to_vec(&exemption).map_err(|e| e.to_string())?;
+    {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(|e| e.to_string())?;
+        file.write_all(&bytes).map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+    }
+    std::fs::rename(&temporary, &destination).map_err(|e| e.to_string())?;
+    Ok(exemption)
+}
+
+fn remove_exemption(event_id: &str) {
+    let _ = std::fs::remove_file(exemptions_dir().join(format!("{event_id}.json")));
+}
+
+/// Returns the desktop-owned, still-live browser exceptions and removes
+/// expired receipts. The sync engine subtracts these before touching hosts.
+pub fn active_exemptions() -> BTreeSet<String> {
+    let dir = exemptions_dir();
+    let mut active = BTreeSet::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return active;
+    };
+    let now = Utc::now();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let exemption = std::fs::read(&path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<BrowserExemption>(&bytes).ok());
+        match exemption {
+            Some(exemption)
+                if DateTime::parse_from_rfc3339(&exemption.until)
+                    .map(|until| until.with_timezone(&Utc) > now)
+                    .unwrap_or(false) =>
+            {
+                active.insert(exemption.domain);
+            }
+            Some(_) => {
+                let _ = std::fs::remove_file(path);
+            }
+            None => {
+                let _ = std::fs::rename(&path, path.with_extension("invalid"));
+            }
+        }
+    }
+    active
+}
+
+/// Remove the requested domain from the current hosts spool immediately. The
+/// normal engine reads the exemption receipt on its next tick and keeps the
+/// domain out until the ten-minute window expires.
+fn apply_exemption_now(domain: &str) -> Result<(), String> {
+    let content = std::fs::read_to_string(crate::blocking::hosts::spool_path()).unwrap_or_default();
+    let domains: BTreeSet<String> = content
+        .lines()
+        .map(|line| line.trim().to_ascii_lowercase())
+        .filter(|candidate| {
+            crate::blocking::hosts::is_valid_domain(candidate) && candidate != domain
+        })
+        .collect();
+    crate::blocking::hosts::write_spool(&domains)?;
+    crate::blocking::platform::trigger_apply();
+
+    // Do not tell the block page to navigate until the privileged helper has
+    // actually removed the managed hosts entry. Otherwise Chrome can race the
+    // task and show the exact ERR_NAME_NOT_RESOLVED screen this bridge avoids.
+    for _ in 0..50 {
+        if !managed_hosts_contains(domain) {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    Err("The desktop hosts helper did not apply the exception in time.".into())
+}
+
+fn managed_hosts_contains(domain: &str) -> bool {
+    let Ok(content) = std::fs::read_to_string(crate::blocking::hosts::hosts_path()) else {
+        return false;
+    };
+    let mut managed = false;
+    for line in content.lines() {
+        if line.trim() == crate::blocking::hosts::MARKER_BEGIN {
+            managed = true;
+            continue;
+        }
+        if line.trim() == crate::blocking::hosts::MARKER_END {
+            break;
+        }
+        if managed {
+            let mapped = line.split_whitespace().nth(1).unwrap_or_default();
+            if mapped == domain || mapped == format!("www.{domain}") {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn persist_event(event: &BrowserEvent) -> Result<(), String> {
@@ -297,6 +571,19 @@ pub fn drain_events(app: &AppHandle) -> Result<usize, String> {
                 }
                 "site_counts" => {
                     stats.import_site_counts(&event.event_id, &event.counts, &event.occurred_at);
+                }
+                "site_unblocked" => {
+                    if let (Some(domain), Some(reason), Some(minutes)) =
+                        (&event.domain, &event.reason, event.minutes)
+                    {
+                        stats.record_site_unblocked(
+                            &event.event_id,
+                            domain,
+                            reason,
+                            minutes,
+                            &event.occurred_at,
+                        );
+                    }
                 }
                 _ => {}
             }
@@ -404,13 +691,14 @@ pub fn install_host() -> Result<(), String> {
 mod tests {
     use super::*;
 
-    fn incoming(event_type: &str) -> IncomingEvent {
-        IncomingEvent {
+    fn incoming(event_type: &str) -> IncomingMessage {
+        IncomingMessage {
             protocol_version: PROTOCOL_VERSION,
             event_id: "event-123".into(),
             event_type: event_type.into(),
             domain: Some("Twitter.COM.".into()),
             counts: BTreeMap::new(),
+            reason: None,
             occurred_at: Some("2026-07-15T16:00:00Z".into()),
         }
     }
@@ -432,6 +720,29 @@ mod tests {
         let event = validate_event(incoming("site_blocked"), GITHUB_EXTENSION_ID).unwrap();
         assert_eq!(event.domain.as_deref(), Some("twitter.com"));
         assert_eq!(event.extension_id, GITHUB_EXTENSION_ID);
+    }
+
+    #[test]
+    fn unblocks_require_a_live_desktop_domain() {
+        let mut message = incoming("unblock_request");
+        message.domain = Some("linkedin.com".into());
+        message.reason = Some("Reply to a recruiter".into());
+        let error = validate_unblock_request(&message, &BrowserBridgeState::default()).unwrap_err();
+        assert!(error.contains("not currently blocking"));
+    }
+
+    #[test]
+    fn unblocks_require_a_written_reason() {
+        let mut message = incoming("unblock_request");
+        message.domain = Some("linkedin.com".into());
+        message.reason = Some("   ".into());
+        let state = BrowserBridgeState {
+            available: true,
+            domains: vec!["linkedin.com".into()],
+            ..Default::default()
+        };
+        let error = validate_unblock_request(&message, &state).unwrap_err();
+        assert!(error.contains("Write a reason"));
     }
 
     #[test]

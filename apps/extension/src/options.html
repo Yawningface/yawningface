@@ -3,101 +3,54 @@
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="ui.css" />
-    <title>yawningface - sites and schedules</title>
+    <title>yawningface browser companion</title>
   </head>
   <body>
-    <main class="page">
-      <div>
-        <h1>Sites and schedules</h1>
+    <main class="page companion-page">
+      <header>
+        <p class="eyebrow">YAWNINGFACE</p>
+        <h1>Browser companion</h1>
         <p class="muted">
-          The same blocklist document the desktop app, the phone and the yf
-          command line use. Export it here, import it there, and every device
-          blocks the same things.
+          The desktop app owns blocking. This extension gives blocked websites
+          a proper front door and sends browser activity back to Insights.
         </p>
-      </div>
+      </header>
+
+      <section class="card connection-card">
+        <div class="connection-dot" id="connection-dot"></div>
+        <div>
+          <h2 id="connection-title">Checking desktop...</h2>
+          <p class="muted" id="connection-detail"></p>
+        </div>
+        <button class="pill" id="refresh">Refresh</button>
+      </section>
 
       <section class="card">
-        <div class="row">
-          <div>
-            <h2>Account</h2>
-            <p class="muted" id="account-line">
-              Sign in and this browser joins the rest of your devices. Stay
-              signed out and it keeps working on its own, offline, forever.
-            </p>
-          </div>
-          <div class="actions">
-            <button class="pill" id="signin">Sign in</button>
-            <button class="pill" id="signout" hidden>Sign out</button>
-          </div>
-        </div>
+        <h2>Active in this browser</h2>
+        <p class="muted" id="active-summary">Waiting for desktop state.</p>
+        <div class="domain-list" id="domains"></div>
+      </section>
 
-        <div id="account-detail" hidden>
-          <label class="field">
-            <span>This device is called</span>
-            <input id="device-name" type="text" placeholder="Windows PC (gaming)" />
-          </label>
-          <p class="small-text" id="sync-line"></p>
+      <section class="card companion-jobs">
+        <h2>What the companion does</h2>
+        <div class="companion-job">
+          <span>01</span>
+          <p>Shows the yawningface page instead of a DNS error.</p>
         </div>
-
-        <details id="connection">
-          <summary class="small-text">Connection</summary>
-          <label class="field">
-            <span>API base</span>
-            <input id="api-base" type="url" placeholder="https://block.yawningface.org" />
-          </label>
-          <label class="field">
-            <span>Auth0 domain</span>
-            <input id="auth0-domain" type="text" placeholder="yawningface.eu.auth0.com" />
-          </label>
-          <label class="field">
-            <span>Auth0 client id</span>
-            <input id="auth0-client" type="text" />
-          </label>
-          <label class="field">
-            <span>Auth0 audience</span>
-            <input id="auth0-audience" type="text" placeholder="https://block.yawningface.org/api" />
-          </label>
-          <p class="small-text">
-            Auth0 must allow this exact callback URL:
-            <code id="redirect"></code>
+        <div class="companion-job">
+          <span>02</span>
+          <p>Reports blocked website attempts to desktop Insights.</p>
+        </div>
+        <div class="companion-job">
+          <span>03</span>
+          <p>
+            Lets you bend a block for 10 minutes after writing a reason, which
+            is also saved to Insights.
           </p>
-          <button class="pill" id="save-connection">Save</button>
-        </details>
-      </section>
-
-      <section class="card">
-        <div class="row">
-          <h2>Schedules</h2>
-          <button class="pill" id="new">+ New</button>
         </div>
-        <div id="lists"></div>
-        <div id="editor"></div>
       </section>
 
-      <section class="card">
-        <h2>The working session list</h2>
-        <p class="muted">
-          What the one-click session blocks. Same defaults as the desktop app.
-        </p>
-        <p class="small-text" id="defaults"></p>
-      </section>
-
-      <section class="card">
-        <div class="row">
-          <div>
-            <h2>Share this config</h2>
-            <p class="muted">
-              One JSON file you own, in the canonical schema.
-            </p>
-          </div>
-          <div class="actions">
-            <button class="pill" id="export">Export</button>
-            <button class="pill" id="import">Import</button>
-          </div>
-        </div>
-        <p class="small-text" id="status"></p>
-        <input type="file" id="file" accept="application/json" hidden />
-      </section>
+      <p class="small-text" id="version"></p>
     </main>
     <script type="module" src="options.js"></script>
   </body>

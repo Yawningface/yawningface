@@ -1,83 +1,73 @@
-# Install the yawningface browser extension
+# Install the yawningface browser companion
 
-Until the extension is published in Chrome Web Store and Microsoft Edge
-Add-ons, it must be loaded manually as an unpacked extension.
+Requirements:
 
-Only install an unpacked build downloaded from the official Yawningface GitHub
-repository or built from source you trust. Unpacked extensions do not update
-automatically.
+- yawningface desktop **v0.2.16 or newer** installed and opened once;
+- the browser companion **v0.1.3 or newer**; and
+- Chrome 120+ or current Microsoft Edge.
+
+Until a browser-store release exists, install the official GitHub build as an
+unpacked extension. Unpacked extensions update manually.
 
 ## From a GitHub Release ZIP
 
-When extension release assets are available:
+1. Download `yawningface-extension-vX.Y.Z-unpacked.zip` and
+   `SHA256SUMS.txt` from the matching official yawningface GitHub Release.
+2. Optionally verify the ZIP's SHA-256.
+3. Extract it to a permanent folder such as
+   `Documents\yawningface-extension`.
+4. Confirm `manifest.json` is directly inside that folder.
 
-1. Open the matching release in the Yawningface GitHub repository.
-2. Download **yawningface-extension-vX.Y.Z-unpacked.zip** and
-   **SHA256SUMS.txt**.
-3. Optionally verify the ZIP SHA-256 against the checksum file.
-4. Extract the ZIP to a permanent folder, such as:
-
-       Documents\yawningface-extension
-
-5. Confirm that **manifest.json** is directly inside that folder.
-
-Do not load the ZIP itself, and do not delete the extracted folder while the
+Do not select the ZIP itself and do not delete the extracted folder while the
 extension is installed.
 
 ## Chrome
 
-1. Enter **chrome://extensions** in the address bar.
-2. Turn on **Developer mode** in the top-right corner.
-3. Click **Load unpacked**.
-4. Select the extracted folder containing **manifest.json**.
-5. Open Chrome's Extensions menu and pin yawningface.
-6. Click the yawningface icon to start a working session.
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Choose **Load unpacked**.
+4. Select the extracted folder containing `manifest.json`.
+5. Pin yawningface from Chrome's Extensions menu.
+6. Open yawningface desktop. The companion popup should say **Connected to
+   yawningface desktop** or show the current blocked-site count.
 
 ## Microsoft Edge
 
-1. Enter **edge://extensions** in the address bar.
-2. Turn on **Developer mode**.
-3. Click **Load unpacked**.
-4. Select the extracted folder containing **manifest.json**.
-5. Pin yawningface from the Extensions menu.
+Use the same steps at `edge://extensions`.
 
-## Build and install from source
+## Build from source
 
 From the repository root:
 
-    npm install
-    npm run build -w @yawningface/extension
+```bash
+npm install
+npm run build -w @yawningface/extension
+```
 
-Then use Load unpacked and select:
+Then load `apps/extension/dist` as the unpacked folder.
 
-    apps/extension/dist
+## Update
 
-## Update a manually installed build
+1. Replace the contents of the existing permanent extension folder with the
+   new release contents.
+2. Return to `chrome://extensions` or `edge://extensions`.
+3. Click **Reload** on yawningface.
+4. Open **Companion details** and confirm the expected version and a connected
+   desktop state.
 
-1. Download and extract the new release.
-2. Replace the files in the same permanent extension folder.
-3. Return to **chrome://extensions** or **edge://extensions**.
-4. Click **Reload** on the yawningface extension card.
-5. Confirm that the displayed version matches the release.
-
-Desktop Insights receives website-attempt counts from extension v0.1.2 or
-newer when yawningface desktop v0.2.15 or newer is installed and has been
-opened at least once.
-
-Keeping the stable extension identity preserves local settings and attempt
-counts. Export **yawningface.json** from extension options before any manual
-remove-and-reinstall operation.
+The pinned extension identity preserves the native bridge permission. If the
+popup says desktop is disconnected, update/open desktop and click **Refresh
+from desktop**.
 
 ## Remove
 
-Open the browser extensions page and click **Remove** on yawningface. Removing
-the browser extension does not remove or disable the yawningface desktop app.
+Click **Remove** on the browser's extension page. This does not remove or
+disable yawningface desktop; native hosts blocking will continue when desktop
+has an active session or schedule.
 
-## Limitations of manual installation
+## Manual-install limitations
 
 - Developer mode must remain enabled.
 - Updates are manual.
-- Chrome may display development-mode warnings.
-- A GitHub-hosted CRX is not a normal direct-install route on unmanaged Windows
-  or macOS computers.
-- General-user installation and automatic updates require a browser store.
+- Chrome may show development-mode warnings.
+- A normal direct install and automatic updates require a browser store.

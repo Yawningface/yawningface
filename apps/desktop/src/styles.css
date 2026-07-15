@@ -1679,6 +1679,36 @@ details summary {
   font-weight: 400;
 }
 
+.unblock-log {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+}
+
+.unblock-log-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.unblock-log-row:last-child {
+  border-bottom: none;
+}
+
+.unblock-log-row p {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.unblock-log-row > .small-text {
+  flex-shrink: 0;
+  text-align: right;
+}
+
 /* empty state */
 
 .empty {

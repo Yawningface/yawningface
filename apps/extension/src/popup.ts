@@ -1,90 +1,69 @@
-import {
-  currentDomains,
-  load,
-  sessionRunning,
-  todayKey,
-  type Session,
-} from "./engine";
+import type { DesktopState } from "./native";
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-let minutes = 60;
-
-function humanMinutes(min: number): string {
-  if (min < 60) return `${min} m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m ? `${h} h ${m} m` : `${h} h`;
+function humanDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min focused today`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${hours} h${rest ? ` ${rest} min` : ""} focused today`;
 }
 
 async function render(): Promise<void> {
-  const { config, cloudConfig, session, days } = await load();
-  const running = sessionRunning(session);
-  const { domains, reasons } = currentDomains(
-    config,
-    session,
-    [],
-    new Date(),
-    cloudConfig,
-  );
-  const blocking = domains.length > 0;
+  const stored = await chrome.storage.local.get([
+    "desktopState",
+    "desktopConnected",
+  ]);
+  const state = (stored.desktopState as DesktopState | undefined) ?? null;
+  const connected = stored.desktopConnected === true;
 
-  $("emoji").textContent = blocking ? "😎" : "😴";
-
-  if (running) {
-    const until = session.until
-      ? new Date(session.until).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null;
-    $("state").textContent = `Blocking ${domains.length} sites`;
-    $("detail").textContent = until ? `until ${until}` : "until you stop";
-  } else if (blocking) {
-    $("state").textContent = `${reasons.join(", ")} is on`;
-    $("detail").textContent = `${domains.length} sites blocked`;
-  } else {
-    $("state").textContent = "Nothing blocked right now.";
-    $("detail").textContent = "";
+  if (!connected) {
+    $("emoji").textContent = "!";
+    $("state").textContent = "Desktop not connected";
+    $("detail").textContent =
+      "Open or update yawningface desktop, then refresh this companion.";
+    $("today").textContent = "";
+    return;
   }
 
-  // The button is the switch: it says what will happen, not what is true.
-  const toggle = $<HTMLButtonElement>("toggle");
-  toggle.textContent = running ? "End session" : "Start working session";
-  $("picker").style.display = running ? "none" : "flex";
-  $("hint").style.display = running ? "none" : "block";
+  $("today").textContent = humanDuration(state?.focusedTodaySeconds ?? 0);
+  if (!state || state.domains.length === 0) {
+    $("emoji").textContent = "\u{1F634}";
+    $("state").textContent = "Nothing blocked right now";
+    $("detail").textContent = "Sessions and schedules live in the desktop app.";
+    return;
+  }
 
-  const focused = Math.round((days[todayKey()] ?? 0) / 60);
-  $("today").textContent = focused > 0 ? `${humanMinutes(focused)} focused today` : "";
+  $("emoji").textContent = "\u{1F60E}";
+  $("state").textContent = `Blocking ${state.domains.length} ${
+    state.domains.length === 1 ? "site" : "sites"
+  }`;
+  const source = state.reasons.length ? state.reasons.join(", ") : "desktop";
+  const until = state.sessionUntil
+    ? ` until ${new Date(state.sessionUntil).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`
+    : "";
+  $("detail").textContent = `${source}${until}`;
 }
 
-/** The worker owns the write, so the session is recorded as an event exactly
-    once no matter who flipped the switch. */
-async function apply(session: Session): Promise<void> {
-  await chrome.runtime.sendMessage({ type: "yf:session", session });
-  await render();
-}
-
-$("picker").addEventListener("click", (e) => {
-  const btn = (e.target as HTMLElement).closest("button");
-  if (!btn) return;
-  minutes = Number(btn.dataset.min);
-  for (const b of $("picker").querySelectorAll("button")) b.classList.remove("on");
-  btn.classList.add("on");
-});
-
-$("toggle").addEventListener("click", async () => {
-  const { session } = await load();
-  if (sessionRunning(session)) {
-    await apply({ active: false, until: null });
-  } else {
-    await apply({
-      active: true,
-      until: minutes > 0 ? Date.now() + minutes * 60_000 : null,
-    });
+$("refresh").addEventListener("click", async () => {
+  const button = $("refresh") as HTMLButtonElement;
+  button.disabled = true;
+  button.textContent = "Refreshing...";
+  try {
+    await chrome.runtime.sendMessage({ type: "yf:refresh" });
+    await render();
+  } finally {
+    button.disabled = false;
+    button.textContent = "Refresh from desktop";
   }
 });
 
-$("options").addEventListener("click", () => chrome.runtime.openOptionsPage());
+$("options").addEventListener("click", () => {
+  void chrome.runtime.openOptionsPage();
+});
 
 void render();
