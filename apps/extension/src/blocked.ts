@@ -1,4 +1,4 @@
-import type { DesktopState } from "./native";
+import { applyDesktopAppearance, type DesktopState } from "./native";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -13,6 +13,7 @@ async function render(): Promise<void> {
   const domain = new URLSearchParams(location.search).get("d") ?? "";
   const stored = await chrome.storage.local.get(["desktopState", "attempts"]);
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
+  applyDesktopAppearance(state);
   const attempts =
     (stored.attempts as Record<string, number> | undefined) ?? {};
 

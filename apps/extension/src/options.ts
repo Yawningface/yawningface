@@ -1,4 +1,4 @@
-import type { DesktopState } from "./native";
+import { applyDesktopAppearance, type DesktopState } from "./native";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -8,6 +8,7 @@ async function render(): Promise<void> {
     "desktopConnected",
   ]);
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
+  applyDesktopAppearance(state);
   const connected = stored.desktopConnected === true;
   $("connection-dot").classList.toggle("connected", connected);
 

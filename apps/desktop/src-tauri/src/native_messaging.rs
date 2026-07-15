@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{AppHandle, Manager};
 
-use crate::settings::save_json;
+use crate::settings::{save_json, Appearance};
 use crate::state::AppState;
 
 pub const HOST_NAME: &str = "com.yawningface.desktop";
@@ -37,6 +37,7 @@ pub struct BrowserBridgeState {
     pub session_until: Option<String>,
     pub focused_today_seconds: u64,
     pub unblocks_today: u32,
+    pub appearance: Appearance,
     pub updated_at: String,
 }
 
@@ -372,6 +373,11 @@ pub fn write_bridge_state(
         let stats = state.stats.lock().unwrap();
         (stats.focused_today_seconds(), stats.unblocks_today())
     };
+    let appearance = {
+        let state = app.state::<AppState>();
+        let appearance = state.settings.lock().unwrap().appearance.clone();
+        appearance
+    };
     let state = BrowserBridgeState {
         available: true,
         domains: domains.iter().cloned().collect(),
@@ -379,8 +385,18 @@ pub fn write_bridge_state(
         session_until,
         focused_today_seconds,
         unblocks_today,
+        appearance,
         updated_at: Utc::now().to_rfc3339(),
     };
+    save_json(&bridge_state_path(), &state)
+}
+
+/// Appearance is a desktop-owned preference, so publish it immediately rather
+/// than waiting for the next blocking-engine tick.
+pub fn write_bridge_appearance(appearance: Appearance) -> Result<(), String> {
+    let mut state = read_bridge_state();
+    state.appearance = appearance;
+    state.updated_at = Utc::now().to_rfc3339();
     save_json(&bridge_state_path(), &state)
 }
 

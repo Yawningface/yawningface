@@ -44,6 +44,7 @@ fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
     save_json(&sync::settings_path(&app), &settings)?;
     *state.settings.lock().unwrap() = settings.clone();
+    native_messaging::write_bridge_appearance(settings.appearance.clone())?;
     let _ = set_autostart(&app, settings.launch_at_login);
     Ok(())
 }
@@ -61,6 +62,7 @@ fn save_appearance(app: AppHandle, appearance: Appearance) -> Result<Settings, S
     };
     save_json(&sync::settings_path(&app), &settings)?;
     *state.settings.lock().unwrap() = settings.clone();
+    native_messaging::write_bridge_appearance(settings.appearance.clone())?;
     Ok(settings)
 }
 

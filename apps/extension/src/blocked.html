@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="system">
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="ui.css" />
@@ -7,66 +7,70 @@
   </head>
   <body>
     <main class="blocked">
-      <!-- Odysseus, lashed to the mast, sailing past the Sirens. The whole
-           product in one picture: the man who knew he would cave, and made
-           caving impossible. -->
+      <!-- Goya, "The Sleep of Reason Produces Monsters", using the complete
+           rectangular landing-page plate rather than its semicircle crop. -->
       <div
         class="blocked-art"
         role="img"
-        aria-label="Odysseus bound to the mast as his ship passes the Sirens"
+        aria-label="Goya's etching The Sleep of Reason Produces Monsters"
       ></div>
 
       <div class="blocked-body">
-        <h1 class="blocked-word">You asked me to stop you.</h1>
-        <p class="blocked-why">
-          <span class="blocked-domain" id="domain">this site</span>
-          is blocked <span id="block-reason">right now</span>.
-        </p>
-        <p class="muted" id="until"></p>
-
-        <div class="blocked-actions">
-          <button class="primary" id="keep">Keep me out</button>
-          <button class="link" id="unblock">Unblock anyway</button>
-        </div>
-        <form class="unblock-reason" id="unblock-reason" hidden>
-          <p class="unblock-principle">Bend, don't break.</p>
-          <label for="excuse">Why do you need access right now?</label>
-          <textarea
-            id="excuse"
-            rows="4"
-            maxlength="500"
-            placeholder="I need LinkedIn to check whether they replied about the job..."
-            required
-          ></textarea>
-          <p class="small-text">
-            Your reason will be written to desktop Insights.
+        <section class="blocked-copy">
+          <h1 class="blocked-word">You asked me to stop you.</h1>
+          <p class="blocked-why">
+            <span class="blocked-domain" id="domain">this site</span>
+            is blocked <span id="block-reason">right now</span>.
           </p>
-          <p class="unblock-error" id="unblock-error" hidden></p>
-          <div class="unblock-reason-actions">
-            <button class="link" type="button" id="cancel-unblock">
-              Cancel
-            </button>
-            <button class="primary" type="submit" id="submit-unblock">
-              Unblock for 10 minutes
-            </button>
-          </div>
-        </form>
-        <p class="small-text" id="unblocked-note" hidden></p>
+          <p class="muted" id="until"></p>
 
-        <div class="blocked-meta">
-          <div class="meta-item">
-            <span class="meta-value" id="focused">0 m</span>
-            <span class="small-text">focused today</span>
+          <div class="blocked-actions">
+            <button class="primary" id="keep">Keep me out</button>
           </div>
-          <div class="meta-item">
-            <span class="meta-value" id="attempts">1</span>
-            <span class="small-text">times you came here</span>
+
+          <div class="blocked-meta">
+            <div class="meta-item">
+              <span class="meta-value" id="focused">0 m</span>
+              <span class="small-text">focused today</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-value" id="attempts">1</span>
+              <span class="small-text">times you came here</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-value" id="unblocks">0</span>
+              <span class="small-text">unblocks today</span>
+            </div>
           </div>
-          <div class="meta-item">
-            <span class="meta-value" id="unblocks">0</span>
-            <span class="small-text">unblocks today</span>
-          </div>
-        </div>
+        </section>
+
+        <section class="blocked-exit">
+          <button class="unblock-whisper" id="unblock">Unblock anyway</button>
+          <form class="unblock-reason" id="unblock-reason" hidden>
+            <p class="unblock-principle">Bend, don't break.</p>
+            <label for="excuse">Why do you need access right now?</label>
+            <textarea
+              id="excuse"
+              rows="4"
+              maxlength="500"
+              placeholder="I need LinkedIn to check whether they replied about the job..."
+              required
+            ></textarea>
+            <p class="small-text">
+              Your reason will be written to desktop Insights.
+            </p>
+            <p class="unblock-error" id="unblock-error" hidden></p>
+            <div class="unblock-reason-actions">
+              <button class="link" type="button" id="cancel-unblock">
+                Cancel
+              </button>
+              <button class="primary" type="submit" id="submit-unblock">
+                Unblock for 10 minutes
+              </button>
+            </div>
+          </form>
+          <p class="small-text" id="unblocked-note" hidden></p>
+        </section>
       </div>
     </main>
     <script type="module" src="blocked.js"></script>

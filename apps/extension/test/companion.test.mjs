@@ -36,4 +36,14 @@ test("desktop state drives rules and exceptions", async () => {
   assert.match(rules, /blocked\.html/);
   assert.match(native, /type: "get_state"/);
   assert.match(native, /type: "unblock_request"/);
+  assert.match(native, /appearance\?: "system" \| "light" \| "dark"/);
+  assert.match(native, /document\.documentElement\.dataset\.theme/);
+});
+
+test("blocked page uses the uncropped Goya plate and keeps escape secondary", async () => {
+  const [html, css] = await Promise.all([read("blocked.html"), read("ui.css")]);
+  assert.match(html, /Goya's etching The Sleep of Reason Produces Monsters/);
+  assert.match(html, /class="blocked-exit"/);
+  assert.match(css, /url\("art\/goya\.webp"\)/);
+  assert.match(css, /\.unblock-whisper[\s\S]*opacity: 0\.34/);
 });

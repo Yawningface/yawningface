@@ -21,7 +21,13 @@ export interface DesktopState {
   sessionUntil: string | null;
   focusedTodaySeconds: number;
   unblocksToday: number;
+  /** Desktop owns appearance too. Optional keeps cached pre-0.1.4 state safe. */
+  appearance?: "system" | "light" | "dark";
   updatedAt: string;
+}
+
+export function applyDesktopAppearance(state: DesktopState | null): void {
+  document.documentElement.dataset.theme = state?.appearance ?? "system";
 }
 
 export interface DesktopUnblockResponse {

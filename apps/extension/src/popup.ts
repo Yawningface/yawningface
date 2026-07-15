@@ -1,4 +1,4 @@
-import type { DesktopState } from "./native";
+import { applyDesktopAppearance, type DesktopState } from "./native";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -17,6 +17,7 @@ async function render(): Promise<void> {
     "desktopBridgeError",
   ]);
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
+  applyDesktopAppearance(state);
   const connected = stored.desktopConnected === true;
 
   if (!connected) {
