@@ -101,27 +101,42 @@ fn is_active_now(meta: &Value, minutes_now: i32, day: &str) -> bool {
 }
 
 fn period_active(period: &Value, minutes_now: i32, day: &str) -> bool {
-    // Day filter: accept "mon" / "monday" / "Mon" ...
-    if let Some(days) = period.get("schedule").and_then(|v| v.as_array()) {
-        if !days.is_empty() {
-            let matches_day = days
-                .iter()
-                .filter_map(|d| d.as_str())
-                .any(|d| d.to_ascii_lowercase().starts_with(day));
-            if !matches_day {
-                return false;
-            }
-        }
-    }
+    let matches_day = |candidate: &str| {
+        // Accept "mon" / "monday" / "Mon" ... Empty = every day.
+        period
+            .get("schedule")
+            .and_then(|v| v.as_array())
+            .is_none_or(|days| {
+                days.is_empty()
+                    || days
+                        .iter()
+                        .filter_map(|d| d.as_str())
+                        .any(|d| d.to_ascii_lowercase().starts_with(candidate))
+            })
+    };
 
     let start = parse_hhmm(period.get("startTime"));
     let end = parse_hhmm(period.get("endTime"));
     match (start, end) {
-        (Some(s), Some(e)) if s == e => true, // degenerate: whole day
-        (Some(s), Some(e)) if s < e => minutes_now >= s && minutes_now < e,
-        // crosses midnight, e.g. 22:00 -> 07:00
-        (Some(s), Some(e)) => minutes_now >= s || minutes_now < e,
-        _ => true, // malformed times -> fail closed towards blocking
+        (Some(s), Some(e)) if s == e => matches_day(day), // equal times = whole selected day
+        (Some(s), Some(e)) if s < e => matches_day(day) && minutes_now >= s && minutes_now < e,
+        (Some(s), Some(_)) if minutes_now >= s => matches_day(day),
+        // After midnight, the period still belongs to the day on which it began.
+        (Some(_), Some(e)) if minutes_now < e => matches_day(previous_day(day)),
+        (Some(_), Some(_)) => false,
+        _ => matches_day(day), // malformed times -> fail closed towards blocking
+    }
+}
+
+fn previous_day(day: &str) -> &'static str {
+    match day {
+        "mon" => "sun",
+        "tue" => "mon",
+        "wed" => "tue",
+        "thu" => "wed",
+        "fri" => "thu",
+        "sat" => "fri",
+        _ => "sat",
     }
 }
 
@@ -217,6 +232,18 @@ mod tests {
         assert!(!evaluate_at(&cfg, 23 * 60, "mon").domains.is_empty());
         assert!(!evaluate_at(&cfg, 6 * 60, "tue").domains.is_empty());
         assert!(evaluate_at(&cfg, 12 * 60, "mon").domains.is_empty());
+    }
+
+    #[test]
+    fn midnight_crossing_is_anchored_to_its_start_day() {
+        let cfg = json!({ "blocklists": [{ "name": "Friday night", "metadata": {
+            "enabled": true,
+            "timePeriods": [{ "startTime": "23:00", "endTime": "09:00", "schedule": ["fri"] }]
+        }, "targets": { "websites": ["youtube.com"] } }] });
+        assert!(!evaluate_at(&cfg, 23 * 60 + 30, "fri").domains.is_empty());
+        assert!(!evaluate_at(&cfg, 8 * 60, "sat").domains.is_empty());
+        assert!(evaluate_at(&cfg, 8 * 60, "fri").domains.is_empty());
+        assert!(evaluate_at(&cfg, 10 * 60, "sat").domains.is_empty());
     }
 
     #[test]

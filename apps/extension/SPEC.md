@@ -1,6 +1,6 @@
 # Yawningface browser extension specification
 
-Status: proposed implementation and distribution contract
+Status: v0.1.2 implements local attempt delivery; desktop-state reflection remains planned
 Target browsers: Google Chrome and Microsoft Edge on desktop
 Extension platform: Manifest V3
 

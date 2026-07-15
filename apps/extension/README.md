@@ -34,12 +34,14 @@ desktop app enforces (`%APPDATA%\org.yawningface.block.desktop\yawningface.json`
 and the same one `yf` edits. Export from one, import into the other, and both
 block the same things. No account, no server, no sync service required.
 
-## Signed in, or an island
+## Local companion and optional sign-in
 
-Signing in is optional and it is the only thing that connects this browser to
-the rest of the account. Signed out, the extension is an island: it blocks from
-`chrome.storage.local`, keeps its own history, and never makes a network
-request. That is a supported way to use it, not a degraded one.
+Signing in is optional. Signed out, the extension blocks from
+`chrome.storage.local`, keeps its own history, and never makes an internet
+request. When the desktop app is installed, a local Native Messaging bridge
+also sends normalized blocked domains to on-device desktop Insights. It does
+not send page contents, full URLs, or browsing history, and it still works
+without an account or server.
 
 Signed in, it becomes the fourth client of the same three endpoints the desktop
 app already speaks to:

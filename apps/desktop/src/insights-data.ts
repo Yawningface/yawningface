@@ -37,7 +37,9 @@ export interface Insights {
   currentStreak: number;
   longestStreak: number;
   topApps: { app: string; count: number }[];
+  topSites: { domain: string; count: number }[];
   appsBlocked: number;
+  sitesBlocked: number;
   cancellationsToday: number;
   cancellationsLast14: number;
   cancellationsTotal: number;
@@ -122,11 +124,13 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
   let totalMinutes = 0;
   let sessions = 0;
   let appsBlocked = 0;
+  let sitesBlocked = 0;
   let cancellationsTotal = 0;
   for (const k of Object.keys(days)) {
     totalMinutes += minutesOf(k);
     sessions += sessionsOf(k);
     appsBlocked += days[k]?.appsBlocked ?? 0;
+    sitesBlocked += days[k]?.sitesBlocked ?? 0;
     cancellationsTotal += cancellationsOf(k);
   }
 
@@ -210,6 +214,11 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
     .slice(0, 10)
     .map(([app, count]) => ({ app, count }));
 
+  const topSites = Object.entries(stats.blockedSites ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([domain, count]) => ({ domain, count }));
+
   const activeDays = activeKeys.length;
 
   return {
@@ -225,7 +234,9 @@ export function computeInsights(stats: Stats, now = Date.now()): Insights {
     currentStreak,
     longestStreak,
     topApps,
+    topSites,
     appsBlocked,
+    sitesBlocked,
     cancellationsToday: cancellationsOf(dayKey(today0)),
     cancellationsLast14: last14.reduce((sum, day) => sum + day.cancellations, 0),
     cancellationsTotal,

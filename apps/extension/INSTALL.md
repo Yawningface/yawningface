@@ -60,6 +60,10 @@ Then use Load unpacked and select:
 4. Click **Reload** on the yawningface extension card.
 5. Confirm that the displayed version matches the release.
 
+Desktop Insights receives website-attempt counts from extension v0.1.2 or
+newer when yawningface desktop v0.2.15 or newer is installed and has been
+opened at least once.
+
 Keeping the stable extension identity preserves local settings and attempt
 counts. Export **yawningface.json** from extension options before any manual
 remove-and-reinstall operation.

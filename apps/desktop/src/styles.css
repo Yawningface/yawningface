@@ -28,7 +28,9 @@
   box-sizing: border-box;
 }
 
-:root {
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
   --paper: #faf9f4;
   --surface: #ffffff;
   --yellow: #f0db0c;
@@ -38,11 +40,76 @@
   --rule: rgba(18, 18, 15, 0.32);
   --rule-faint: rgba(18, 18, 15, 0.14);
   --danger: #a03414;
+  --hover-bg: rgba(18, 18, 15, 0.04);
+  --active-bg: rgba(18, 18, 15, 0.06);
+  --control-border: rgba(18, 18, 15, 0.34);
+  --brand-ink: #12120f;
+  --brand-ink-soft: rgba(18, 18, 15, 0.72);
+  --brand-rule: rgba(18, 18, 15, 0.28);
+  --brand-ring: rgba(18, 18, 15, 0.18);
+  --brand-danger: #7c2412;
+  --action-bg: var(--ink);
+  --action-fg: var(--yellow);
+  --schedule-1: #f0db0c;
+  --schedule-2: #eea13a;
+  --schedule-3: #db7138;
+  --schedule-4: #b8b84a;
+  --schedule-5: #74aaa3;
+  --schedule-6: #b49acb;
   --radius: 4px;
   --mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --sans: "Geist", system-ui, sans-serif;
   --display: "Instrument Serif", Georgia, serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #151512;
+  --surface: #20201c;
+  --yellow: #f0db0c;
+  --ink: #f4f1e8;
+  --ink-soft: rgba(244, 241, 232, 0.76);
+  --ink-faint: rgba(244, 241, 232, 0.5);
+  --rule: rgba(244, 241, 232, 0.32);
+  --rule-faint: rgba(244, 241, 232, 0.14);
+  --danger: #ff8a69;
+  --hover-bg: rgba(244, 241, 232, 0.06);
+  --active-bg: rgba(244, 241, 232, 0.09);
+  --control-border: rgba(244, 241, 232, 0.34);
+  --brand-ink: #12120f;
+  --brand-ink-soft: rgba(18, 18, 15, 0.72);
+  --brand-rule: rgba(18, 18, 15, 0.28);
+  --brand-ring: rgba(18, 18, 15, 0.18);
+  --brand-danger: #7c2412;
+  --action-bg: var(--yellow);
+  --action-fg: var(--brand-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"],
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --paper: #151512;
+    --surface: #20201c;
+    --yellow: #f0db0c;
+    --ink: #f4f1e8;
+    --ink-soft: rgba(244, 241, 232, 0.76);
+    --ink-faint: rgba(244, 241, 232, 0.5);
+    --rule: rgba(244, 241, 232, 0.32);
+    --rule-faint: rgba(244, 241, 232, 0.14);
+    --danger: #ff8a69;
+    --hover-bg: rgba(244, 241, 232, 0.06);
+    --active-bg: rgba(244, 241, 232, 0.09);
+    --control-border: rgba(244, 241, 232, 0.34);
+    --brand-ink: #12120f;
+    --brand-ink-soft: rgba(18, 18, 15, 0.72);
+    --brand-rule: rgba(18, 18, 15, 0.28);
+    --brand-ring: rgba(18, 18, 15, 0.18);
+    --brand-danger: #7c2412;
+    --action-bg: var(--yellow);
+    --action-fg: var(--brand-ink);
+  }
 }
 
 /* Development build: the app keeps its real colours, but says what it is.
@@ -55,7 +122,7 @@
   transform: translateX(-50%);
   z-index: 9999;
   pointer-events: none;
-  background: var(--ink);
+  background: var(--brand-ink);
   color: var(--yellow);
   font-size: 9.5px;
   font-weight: 700;
@@ -65,8 +132,8 @@
 }
 
 ::selection {
-  background: var(--ink);
-  color: var(--yellow);
+  background: var(--yellow);
+  color: var(--brand-ink);
 }
 
 html,
@@ -135,12 +202,12 @@ body {
 
 .nav-item:hover {
   color: var(--ink);
-  background: rgba(18, 18, 15, 0.04);
+  background: var(--hover-bg);
 }
 
 .nav-item.active {
   color: var(--ink);
-  background: rgba(18, 18, 15, 0.06);
+  background: var(--active-bg);
 }
 
 .nav-dot {
@@ -173,44 +240,6 @@ body {
   justify-content: center;
   gap: 18px;
   position: relative;
-  transition:
-    background-color 260ms var(--ease),
-    box-shadow 260ms var(--ease);
-}
-
-/* Blocking should be felt before it is read: the working area becomes a
-   sealed yellow perimeter. The movement happens once, when protection turns
-   on; an always-pulsing glow would compete with the work it is protecting. */
-.focus-page.blocking-active {
-  background: linear-gradient(
-    135deg,
-    rgba(240, 219, 12, 0.08),
-    rgba(240, 219, 12, 0.025) 42%,
-    transparent 72%
-  );
-  box-shadow:
-    inset 0 0 0 3px var(--yellow),
-    inset 0 0 34px rgba(240, 219, 12, 0.1);
-  animation: protection-seal 620ms var(--ease) both;
-}
-
-@keyframes protection-seal {
-  from {
-    box-shadow:
-      inset 0 0 0 0 rgba(240, 219, 12, 0),
-      inset 0 0 0 rgba(240, 219, 12, 0);
-  }
-  to {
-    box-shadow:
-      inset 0 0 0 3px var(--yellow),
-      inset 0 0 34px rgba(240, 219, 12, 0.1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .focus-page.blocking-active {
-    animation: none;
-  }
 }
 
 /* Secondary pages: a title, a line of context, then the content. */
@@ -249,10 +278,10 @@ body {
   gap: 7px;
   min-height: 25px;
   padding: 4px 10px;
-  border: 1px solid rgba(18, 18, 15, 0.28);
+  border: 1px solid var(--brand-rule);
   border-radius: 999px;
   background: var(--yellow);
-  color: var(--ink);
+  color: var(--brand-ink);
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -263,8 +292,8 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ink);
-  box-shadow: 0 0 0 3px rgba(18, 18, 15, 0.12);
+  background: var(--brand-ink);
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
 .hero-emoji {
@@ -356,24 +385,24 @@ b {
 /* The one-time permission ask is the only yellow thing on the screen. */
 .card.warn {
   background: var(--yellow);
-  border-color: var(--ink);
-  color: var(--ink);
+  border-color: var(--brand-ink);
+  color: var(--brand-ink);
 }
 
 .card.warn > b {
-  color: var(--ink);
+  color: var(--brand-ink);
 }
 
 .card.warn .muted {
-  color: rgba(18, 18, 15, 0.72);
+  color: var(--brand-ink-soft);
 }
 
 .card.warn .error {
-  color: #7c2412;
+  color: var(--brand-danger);
 }
 
 .cta-dark {
-  background: var(--ink);
+  background: var(--brand-ink);
   color: var(--yellow);
   font-weight: 600;
   border-radius: var(--radius);
@@ -424,8 +453,8 @@ button:disabled {
 }
 
 .primary {
-  background: var(--ink);
-  color: var(--yellow);
+  background: var(--action-bg);
+  color: var(--action-fg);
   font-weight: 600;
   border-radius: var(--radius);
   min-height: 46px;
@@ -474,7 +503,7 @@ button:disabled {
 
 .gear:hover {
   color: var(--ink);
-  background: rgba(18, 18, 15, 0.05);
+  background: var(--hover-bg);
 }
 
 .small {
@@ -497,7 +526,7 @@ button:disabled {
 }
 
 .blocking-active .session-card {
-  border-color: rgba(18, 18, 15, 0.34);
+  border-color: var(--control-border);
   box-shadow: inset 0 3px 0 var(--yellow);
 }
 
@@ -505,6 +534,48 @@ button:disabled {
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
+}
+
+.session-progress {
+  width: min(100%, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.session-progress-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 11.5px;
+}
+
+.session-progress-label span,
+.session-no-limit {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.session-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid var(--rule-faint);
+  border-radius: 999px;
+  background: var(--paper);
+}
+
+.session-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--yellow);
+  box-shadow: inset 0 0 0 1px var(--brand-ring);
+  transition: width 1s linear;
+}
+
+.session-progress-track.starting > span {
+  min-width: 7px;
 }
 
 /* ---- segmented duration picker ---- */
@@ -551,6 +622,302 @@ button:disabled {
 }
 
 /* ---- scheduled sessions ---- */
+
+.schedules-page {
+  max-width: 880px;
+}
+
+.schedule-calendar {
+  gap: 12px;
+}
+
+.schedule-manager {
+  gap: 0;
+}
+
+.schedule-manager-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  list-style: none;
+  color: var(--ink);
+}
+
+.schedule-manager-summary::-webkit-details-marker {
+  display: none;
+}
+
+.schedule-manager-summary:hover .schedule-manager-title {
+  color: var(--ink);
+}
+
+.schedule-manager-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-manager-title i {
+  color: var(--ink-faint);
+  font-size: 18px;
+  font-style: normal;
+  line-height: 1;
+  transition: transform 180ms var(--ease);
+}
+
+.schedule-manager[open] .schedule-manager-title i {
+  transform: rotate(90deg);
+}
+
+.schedule-manager-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-faint);
+}
+
+.schedule-manager-actions {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 31px;
+}
+
+.schedule-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.schedule-calendar-toolbar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.schedule-calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.calendar-arrow {
+  min-width: 32px;
+  border: 1px solid var(--rule-faint);
+  background: var(--paper);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.calendar-arrow:hover {
+  border-color: var(--rule);
+  background: var(--hover-bg);
+}
+
+.schedule-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.calendar-legend-item.disabled {
+  opacity: 0.5;
+}
+
+.calendar-legend-item em {
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+.calendar-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--brand-ring);
+  flex: 0 0 auto;
+}
+
+.schedule-calendar-frame {
+  overflow: hidden;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.schedule-calendar-head {
+  display: grid;
+  grid-template-columns: 48px repeat(7, minmax(0, 1fr));
+  height: 48px;
+  border-bottom: 1px solid var(--rule-faint);
+  background: var(--surface);
+}
+
+.calendar-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  border-left: 1px solid var(--rule-faint);
+  color: var(--ink-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendar-day-head b {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.calendar-day-head.today {
+  background: color-mix(in srgb, var(--yellow) 18%, transparent);
+  color: var(--ink);
+}
+
+.calendar-day-head.today b {
+  color: var(--ink);
+}
+
+.schedule-calendar-body {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.calendar-time-axis {
+  position: relative;
+  height: var(--calendar-day-height);
+  border-right: 1px solid var(--rule-faint);
+  background: var(--surface);
+}
+
+.calendar-time-axis > span {
+  position: absolute;
+  left: 0;
+  right: 7px;
+  padding-top: 2px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.calendar-day-lanes {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  height: var(--calendar-day-height);
+  min-width: 0;
+}
+
+.calendar-day-lane {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--rule-faint);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--calendar-hour-height) - 1px),
+    var(--rule-faint) calc(var(--calendar-hour-height) - 1px),
+    var(--rule-faint) var(--calendar-hour-height)
+  );
+}
+
+.calendar-day-lane:first-child {
+  border-left: none;
+}
+
+.calendar-day-lane.today {
+  background-color: color-mix(in srgb, var(--yellow) 5%, transparent);
+}
+
+.calendar-block {
+  position: absolute;
+  z-index: 2;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  padding: 3px 4px;
+  color: var(--brand-ink);
+  box-shadow: inset 0 0 0 1px var(--brand-ring);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.calendar-block b,
+.calendar-block span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-block b {
+  font-weight: 650;
+}
+
+.calendar-block.disabled {
+  opacity: 0.48;
+  filter: saturate(0.45);
+}
+
+.calendar-tone-0 { background: var(--schedule-1); }
+.calendar-tone-1 { background: var(--schedule-2); }
+.calendar-tone-2 { background: var(--schedule-3); }
+.calendar-tone-3 { background: var(--schedule-4); }
+.calendar-tone-4 { background: var(--schedule-5); }
+.calendar-tone-5 { background: var(--schedule-6); }
+
+.calendar-now-line {
+  position: absolute;
+  z-index: 3;
+  left: -1px;
+  right: -1px;
+  height: 1px;
+  background: var(--danger);
+  pointer-events: none;
+}
+
+.calendar-now-line::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.calendar-empty {
+  position: absolute;
+  z-index: 1;
+  top: 46%;
+  left: 0;
+  right: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
 
 .schedule-row {
   display: flex;
@@ -604,12 +971,47 @@ button:disabled {
 
 .time-range {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
 }
 
-.time-range input {
+.time-field {
   flex: 1;
+  min-width: 0;
+}
+
+.time-arrow {
+  padding-bottom: 9px;
+}
+
+.time-range input {
+  width: 100%;
+}
+
+.schedule-timing-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--yellow);
+  background: var(--hover-bg);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.schedule-timing-preview b {
+  color: var(--ink);
+}
+
+.schedule-timing-preview em {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-style: normal;
+}
+
+.schedule-timing-preview.long {
+  border-left-color: var(--danger);
 }
 
 input[type="time"] {
@@ -621,7 +1023,6 @@ input[type="time"] {
   padding: 8px 12px;
   color: var(--ink);
   outline: none;
-  color-scheme: light;
 }
 
 input[type="time"]:focus {
@@ -647,39 +1048,188 @@ textarea:focus {
   border-color: var(--ink);
 }
 
-/* ---- companions (extension + CLI) ---- */
+/* ---- devices ---- */
 
-.row.companion {
-  align-items: center;
-  padding: 4px 0;
+.devices-page {
+  max-width: 700px;
 }
 
-.row.companion > div {
+.platform-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+.platform-icon.outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.device-card {
+  gap: 0;
+}
+
+.device-card-head,
+.device-section-head,
+.device-account-row,
+.browser-extension {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.device-heading,
+.browser-row-main,
+.device-platform-list,
+.device-platform-list span,
+.device-platform-marks {
+  display: flex;
+  align-items: center;
+}
+
+.device-heading {
+  gap: 10px;
   min-width: 0;
 }
 
-.row.companion span {
-  font-weight: 600;
+.device-heading > .platform-icon,
+.device-heading > .device-platform-marks {
+  color: var(--ink);
+}
+
+.device-heading.compact {
+  gap: 8px;
+}
+
+.device-heading.compact .platform-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.device-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.device-state {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.device-state.connected {
+  color: var(--ink);
+}
+
+.device-state.connected::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.device-browser-section {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-faint);
+}
+
+.device-section-head {
+  min-height: 34px;
+}
+
+.browser-extension {
+  min-height: 48px;
+  padding: 8px 0 8px 24px;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.browser-extension:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.browser-row-main {
+  gap: 9px;
+  min-width: 0;
+}
+
+.browser-row-main > div {
+  min-width: 0;
+}
+
+.browser-row-main > .platform-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-soft);
+}
+
+.browser-row-main span {
   font-size: 12.5px;
+  font-weight: 600;
 }
 
-.row.companion .small-text {
-  margin-top: 2px;
+.browser-row-main .small-text {
+  margin-top: 1px;
 }
 
-.row.companion .ghost.pill {
-  flex-shrink: 0;
+.device-platform-marks {
+  gap: 4px;
 }
 
-.row.companion-intro {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--rule-faint);
+.device-platform-marks .platform-icon {
+  width: 15px;
+  height: 15px;
 }
 
-.row.browser-extension {
-  min-height: 40px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--rule-faint);
+.device-platform-list {
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.device-platform-list span {
+  gap: 6px;
+}
+
+.device-platform-list .platform-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.device-platform-list em {
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+.device-account-row,
+.device-card > .ghost.pill,
+.device-card > .code,
+.agent-copy {
+  margin-top: 14px;
+}
+
+.agent-copy code {
+  font-family: var(--mono);
+  color: var(--ink);
 }
 
 .extension-state {
@@ -693,7 +1243,7 @@ textarea:focus {
 
 .extension-state.installed {
   background: var(--yellow);
-  color: var(--ink);
+  color: var(--brand-ink);
 }
 
 /* ---- device-code display ---- */
@@ -702,7 +1252,7 @@ textarea:focus {
   font-family: var(--sans);
   font-size: 22px;
   letter-spacing: 4px;
-  background: var(--ink);
+  background: var(--brand-ink);
   border-radius: var(--radius);
   padding: 12px 18px;
   color: var(--yellow);
@@ -740,7 +1290,8 @@ input[type="checkbox"] {
 }
 
 input[type="text"],
-input:not([type]) {
+input:not([type]),
+select {
   font: inherit;
   font-family: var(--sans);
   background: var(--surface);
@@ -752,7 +1303,12 @@ input:not([type]) {
   transition: border-color 180ms var(--ease);
 }
 
-input:focus {
+select {
+  width: 100%;
+}
+
+input:focus,
+select:focus {
   border-color: var(--ink);
 }
 
@@ -816,208 +1372,6 @@ details summary {
 
 .about-link:hover {
   text-decoration: underline;
-}
-
-/* ---- first run: the setup window ---- */
-
-.onboarding {
-  flex: 1;
-  width: 100%;
-  max-width: 620px;
-  margin: 0 auto;
-  padding: 40px 32px 36px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  overflow-y: auto;
-}
-
-.onboarding-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  text-align: center;
-}
-
-/* The one place the brand face is still allowed: the first-run welcome, which
-   is a moment, not a screen you work in. */
-.wordmark {
-  font-family: var(--display);
-  font-size: clamp(44px, 8vw, 72px);
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  color: var(--ink);
-}
-
-.lede {
-  font-size: 14px;
-  color: var(--ink-soft);
-  line-height: 1.6;
-  max-width: 46ch;
-  text-wrap: balance;
-}
-
-.done-emoji {
-  font-size: 64px;
-  line-height: 1.1;
-  animation: hero-pop 260ms var(--ease);
-}
-
-.onboarding-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.onboarding-actions .primary.big {
-  min-width: 260px;
-  width: auto;
-}
-
-.setup-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.progress-track {
-  height: 3px;
-  background: var(--rule-faint);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  display: block;
-  height: 100%;
-  background: var(--yellow);
-  transition: width 400ms var(--ease);
-}
-
-.steps {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 6px;
-}
-
-.step {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  transition: background-color 220ms var(--ease);
-}
-
-.step.running {
-  background: var(--surface);
-  border-color: var(--rule-faint);
-}
-
-.step.failed {
-  background: var(--surface);
-  border-color: var(--danger);
-}
-
-/* The mark is a ring while pending, fills in when the step really lands. */
-.step-mark {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border-radius: 50%;
-  border: 1px solid var(--rule);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: transparent;
-}
-
-.step.running .step-mark {
-  border-color: var(--ink);
-  border-right-color: transparent;
-  animation: step-spin 700ms linear infinite;
-}
-
-.step.done .step-mark {
-  background: var(--yellow);
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.step.failed .step-mark {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #ffffff;
-}
-
-@keyframes step-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .step.running .step-mark {
-    animation: none;
-  }
-}
-
-.step-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.step-title {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.step.idle .step-title {
-  color: var(--ink-faint);
-}
-
-.step-detail {
-  font-size: 12px;
-  color: var(--ink-faint);
-  line-height: 1.5;
-}
-
-/* Live output: the honest version of Hermes's log panel. */
-.live-output {
-  max-height: 120px;
-  overflow-y: auto;
-  background: var(--ink);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  font-size: 11.5px;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.live-line::before {
-  content: "→ ";
-  color: var(--yellow);
-}
-
-.setup-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
 }
 
 /* ---- insights ---- */
@@ -1139,7 +1493,7 @@ details summary {
   left: 18%;
   width: 64%;
   background: var(--yellow);
-  box-shadow: inset 0 0 0 1px rgba(18, 18, 15, 0.18);
+  box-shadow: inset 0 0 0 1px var(--brand-ring);
 }
 
 .cancel-marker {
@@ -1238,7 +1592,7 @@ details summary {
 }
 .heat-cell.l4 {
   background: var(--yellow);
-  box-shadow: inset 0 0 0 1px rgba(18, 18, 15, 0.2);
+  box-shadow: inset 0 0 0 1px var(--brand-ring);
 }
 .heat-cell.future {
   background: transparent;

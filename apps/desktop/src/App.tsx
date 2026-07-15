@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import packageInfo from "../package.json";
-import Onboarding from "./Onboarding";
 import Insights from "./Insights";
+import {
+  AndroidIcon,
+  AppleIcon,
+  BrowserIcon,
+  ChromeIcon,
+  TerminalIcon,
+  WindowsIcon,
+} from "./PlatformIcons";
+import ScheduleCalendar, { describeSchedulePeriod } from "./ScheduleCalendar";
 import { IS_DEV_BUILD } from "./build";
 import type {
+  Appearance,
   Blocklist,
   BrowserExtensionScan,
   BrowserExtensionStatus,
@@ -17,13 +27,13 @@ import type {
   Settings,
 } from "./types";
 
-type View = "focus" | "insights" | "schedules" | "connect" | "settings";
+type View = "focus" | "insights" | "schedules" | "devices" | "settings";
 
 const NAV: { id: View; label: string }[] = [
   { id: "focus", label: "Focus" },
-  { id: "insights", label: "Insights" },
   { id: "schedules", label: "Schedules" },
-  { id: "connect", label: "Connect" },
+  { id: "insights", label: "Insights" },
+  { id: "devices", label: "Devices" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -33,6 +43,19 @@ const DURATIONS: { label: string; minutes: number | null }[] = [
   { label: "2 h", minutes: 120 },
   { label: "No limit", minutes: null },
 ];
+
+const APPEARANCES: { value: Appearance; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function applyAppearance(appearance: Appearance) {
+  document.documentElement.dataset.theme = appearance;
+  void getCurrentWindow()
+    .setTheme(appearance === "system" ? null : appearance)
+    .catch(() => {});
+}
 
 /** iOS-style segmented control with a sliding thumb, in brand yellow.
     The thumb width in styles.css assumes DURATIONS.length === 4. */
@@ -98,17 +121,11 @@ export default function App() {
     };
   }, [refresh]);
 
-  if (!settings || !status) return <div className="shell" />;
+  useEffect(() => {
+    applyAppearance(settings?.appearance ?? "system");
+  }, [settings?.appearance]);
 
-  // First run: the setup screen owns the whole window.
-  if (!settings.onboarded) {
-    return (
-      <div className="shell">
-        <DevBadge />
-        <Onboarding status={status} onDone={refresh} />
-      </div>
-    );
-  }
+  if (!settings || !status) return <div className="shell" />;
 
   const schedulesOn = status.activeLists.filter(
     (l) => l !== "Working session",
@@ -143,25 +160,29 @@ export default function App() {
         )}
         {view === "insights" && <Insights />}
         {view === "schedules" && (
-          <section className="page">
+          <section className="page schedules-page">
             <h2>Schedules</h2>
             <p className="page-note">
-              Sessions that start without you: weekday mornings, every evening,
-              whatever keeps you honest.
+              See what will be blocked over the next seven days, then adjust the
+              routines that make it happen.
             </p>
             {localCfg && (
-              <ScheduledSessionsCard info={localCfg} onChanged={refresh} />
+              <>
+                <ScheduledSessionsCard info={localCfg} onChanged={refresh} />
+                <ScheduleCalendar lists={localCfg.config.blocklists ?? []} />
+              </>
             )}
           </section>
         )}
-        {view === "connect" && (
-          <section className="page">
-            <h2>Connect</h2>
+        {view === "devices" && (
+          <section className="page devices-page">
+            <h2>Devices</h2>
             <p className="page-note">
-              The same blocklist, everywhere you work.
+              Yawningface wherever you work.
             </p>
+            <CompanionsCard status={status} />
             <SyncCard status={status} onChanged={refresh} />
-            <CompanionsCard />
+            <AgentAccessCard />
           </section>
         )}
         {view === "settings" && (
@@ -187,6 +208,14 @@ function SessionCard({
 }) {
   const [minutes, setMinutes] = useState<number | null>(60);
   const [busy, setBusy] = useState(false);
+  const [clock, setClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!status.sessionActive || !status.sessionUntil) return;
+    setClock(Date.now());
+    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [status.sessionActive, status.sessionUntil]);
 
   const start = async () => {
     setBusy(true);
@@ -206,10 +235,49 @@ function SessionCard({
     }
   };
 
+  const startAt = status.sessionStartedAt
+    ? Date.parse(status.sessionStartedAt)
+    : Number.NaN;
+  const endAt = status.sessionUntil
+    ? Date.parse(status.sessionUntil)
+    : Number.NaN;
+  const totalMs = endAt - startAt;
+  const remainingMs = Math.max(0, endAt - clock);
+  const progress = Number.isFinite(totalMs) && totalMs > 0
+    ? Math.min(100, Math.max(0, ((clock - startAt) / totalMs) * 100))
+    : null;
+
   if (status.sessionActive) {
     return (
       <section className="session-card">
         <div className="session-title">Working session</div>
+        {status.sessionUntil && (
+          <div className="session-progress">
+            <div className="session-progress-label">
+              <b>{formatTimeRemaining(remainingMs)} left</b>
+              <span>
+                ends {new Date(status.sessionUntil).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+            <div
+              className={progress === null ? "session-progress-track starting" : "session-progress-track"}
+              role="progressbar"
+              aria-label="Working session progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress === null ? undefined : Math.round(progress)}
+              aria-valuetext={formatTimeRemaining(remainingMs) + " remaining"}
+            >
+              <span style={{ width: progress === null ? "0%" : progress.toString() + "%" }} />
+            </div>
+          </div>
+        )}
+        {!status.sessionUntil && (
+          <p className="session-no-limit">No time limit</p>
+        )}
         <button className="ghost pill" disabled={busy} onClick={stop}>
           End session
         </button>
@@ -234,6 +302,16 @@ function SessionCard({
       </p>
     </section>
   );
+}
+
+function formatTimeRemaining(milliseconds: number): string {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1_000));
+  if (seconds < 60) return seconds + " sec";
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return minutes + " min";
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder > 0 ? hours + " h " + remainder + " min" : hours + " h";
 }
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -279,6 +357,7 @@ function ScheduleEditor({
   const [websites, setWebsites] = useState(DEFAULT_WEBSITES.join("\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const timing = describeSchedulePeriod({ startTime: start, endTime: end });
 
   const toggleDay = (d: string) =>
     setDays((cur) =>
@@ -333,9 +412,22 @@ function ScheduleEditor({
         ))}
       </div>
       <div className="time-range">
-        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
-        <span className="muted">to</span>
-        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+        <label className="time-field">
+          <span>Starts</span>
+          <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+        </label>
+        <span className="muted time-arrow">→</span>
+        <label className="time-field">
+          <span>Ends</span>
+          <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </label>
+      </div>
+      <div className={`schedule-timing-preview ${timing.durationMinutes > 16 * 60 ? "long" : ""}`} aria-live="polite">
+        <b>{timing.range}</b>
+        <span>{timing.detail}</span>
+        {timing.durationMinutes > 16 * 60 && (
+          <em>This blocks for most of the day. Check AM/PM.</em>
+        )}
       </div>
       <details>
         <summary className="muted">Websites ({websites.split(/[\n,\s]+/).filter(Boolean).length})</summary>
@@ -367,6 +459,7 @@ function ScheduledSessionsCard({
 }) {
   const [adding, setAdding] = useState(false);
   const lists = info.config.blocklists ?? [];
+  const enabledCount = lists.filter((list) => list.metadata?.enabled).length;
 
   const saveConfig = async (blocklists: Blocklist[]) => {
     await invoke("save_local_config", {
@@ -392,54 +485,68 @@ function ScheduledSessionsCard({
   const remove = (i: number) => saveConfig(lists.filter((_, j) => j !== i));
 
   return (
-    <section className="card">
-      <div className="row">
-        <b>Scheduled sessions</b>
-        {!adding && (
-          <button className="ghost small" onClick={() => setAdding(true)}>
-            + New
-          </button>
-        )}
-      </div>
-      {lists.length === 0 && !adding && (
-        <p className="muted">
-          A routine that starts without you: weekday mornings, every evening,
-          whatever keeps you honest.
-        </p>
-      )}
-      {lists.map((l, i) => {
-        const period = l.metadata?.timePeriods?.[0];
-        return (
-          <div className="schedule-row" key={l.id ?? i}>
-            <label className="checkbox schedule-main">
-              <input
-                type="checkbox"
-                checked={!!l.metadata?.enabled}
-                onChange={() => toggle(i)}
-              />
-              <span className="schedule-name">{l.name}</span>
-              <span className="small-text">
-                {period
-                  ? `${summarizeDays(period.schedule ?? [])} ${period.startTime}-${period.endTime}`
-                  : "always on"}
-              </span>
-            </label>
-            <button className="ghost small" onClick={() => remove(i)}>
-              Remove
+    <details className="card schedule-manager">
+      <summary className="schedule-manager-summary">
+        <span className="schedule-manager-title">
+          <i aria-hidden="true">›</i>
+          <b>Scheduled sessions</b>
+        </span>
+        <span className="small-text">
+          {lists.length === 0
+            ? "None yet"
+            : `${lists.length} ${lists.length === 1 ? "schedule" : "schedules"} · ${enabledCount} on`}
+        </span>
+      </summary>
+      <div className="schedule-manager-body">
+        <div className="schedule-manager-actions">
+          {!adding && (
+            <button className="ghost small" onClick={() => setAdding(true)}>
+              + New schedule
             </button>
-          </div>
-        );
-      })}
-      {adding && <ScheduleEditor onSave={add} onCancel={() => setAdding(false)} />}
-    </section>
+          )}
+        </div>
+        {lists.length === 0 && !adding && (
+          <p className="muted">
+            A routine that starts without you: weekday mornings, every evening,
+            whatever keeps you honest.
+          </p>
+        )}
+        {lists.map((l, i) => {
+          const period = l.metadata?.timePeriods?.[0];
+          const timing = period ? describeSchedulePeriod(period) : null;
+          const duration = timing?.detail.split(" · ").pop();
+          return (
+            <div className="schedule-row" key={l.id ?? i}>
+              <label className="checkbox schedule-main">
+                <input
+                  type="checkbox"
+                  checked={!!l.metadata?.enabled}
+                  onChange={() => toggle(i)}
+                />
+                <span className="schedule-name">{l.name}</span>
+                <span className="small-text">
+                  {period
+                    ? `${summarizeDays(period.schedule ?? [])} · ${timing?.range} · ${duration}`
+                    : "always on"}
+                </span>
+              </label>
+              <button className="ghost small" onClick={() => remove(i)}>
+                Remove
+              </button>
+            </div>
+          );
+        })}
+        {adding && <ScheduleEditor onSave={add} onCancel={() => setAdding(false)} />}
+      </div>
+    </details>
   );
 }
 
 const IS_MAC = navigator.userAgent.includes("Mac");
 const EXTENSION_URL =
-  "https://chromewebstore.google.com/detail/block/kfnhibndbkdjcplihjhbhdhclpbiocen";
+  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.2";
 
-function CompanionsCard() {
+function CompanionsCard({ status }: { status: EngineStatus }) {
   const [extensionScan, setExtensionScan] = useState<BrowserExtensionScan | null>(null);
   const [checkingExtensions, setCheckingExtensions] = useState(true);
   const [extensionScanError, setExtensionScanError] = useState(false);
@@ -461,36 +568,36 @@ function CompanionsCard() {
   }, [checkExtensions]);
 
   return (
-    <section className="card">
-      <b>Works better together</b>
-      <div className="row companion companion-intro">
-        <div>
-          <span>Browser protection</span>
-          <p className="small-text">
-            Adds the custom block screen and protects full URLs inside your browser.
-          </p>
+    <section className="card device-card">
+      <div className="device-card-head">
+        <div className="device-heading">
+          {IS_MAC ? <AppleIcon /> : <WindowsIcon />}
+          <div className="device-title">
+            <b>This computer</b>
+            <span className="small-text">{status.deviceName}</span>
+          </div>
         </div>
-        <button className="ghost small" disabled={checkingExtensions} onClick={checkExtensions}>
-          {checkingExtensions ? "Checking…" : "Check again"}
-        </button>
+        <span className="device-state connected">Installed</span>
       </div>
-      {extensionScanError && (
-        <p className="error small-text">Could not check browser extensions.</p>
-      )}
-      {!extensionScanError && extensionScan && extensionScan.browsers.length === 0 && (
-        <p className="small-text muted">No supported Chromium browser detected.</p>
-      )}
-      {extensionScan?.browsers.map((browser) => (
-        <BrowserExtensionRow key={browser.id} browser={browser} />
-      ))}
-      <div className="row companion">
-        <div>
-          <span>yf, the command line</span>
-          <p className="small-text">
-            A command-line companion for managing your blocklist and schedules.
-          </p>
+      <div className="device-browser-section">
+        <div className="device-section-head">
+          <span className="device-heading compact">
+            <ChromeIcon />
+            <b>Browser protection</b>
+          </span>
+          <button className="ghost small" disabled={checkingExtensions} onClick={checkExtensions}>
+            {checkingExtensions ? "Checking…" : "Check again"}
+          </button>
         </div>
-        <span className="small-text">coming soon</span>
+        {extensionScanError && (
+          <p className="error small-text">Could not check browser extensions.</p>
+        )}
+        {!extensionScanError && extensionScan && extensionScan.browsers.length === 0 && (
+          <p className="small-text muted">No supported browser found.</p>
+        )}
+        {extensionScan?.browsers.map((browser) => (
+          <BrowserExtensionRow key={browser.id} browser={browser} />
+        ))}
       </div>
     </section>
   );
@@ -516,10 +623,13 @@ function BrowserExtensionRow({ browser }: { browser: BrowserExtensionStatus }) {
   }
 
   return (
-    <div className="row companion browser-extension">
-      <div>
-        <span>{browser.name}</span>
-        <p className="small-text">{detail}</p>
+    <div className="browser-extension">
+      <div className="browser-row-main">
+        {browser.id === "chrome" ? <ChromeIcon /> : <BrowserIcon />}
+        <div>
+          <span>{browser.name}</span>
+          <p className="small-text">{detail}</p>
+        </div>
       </div>
       {fullyEnabled ? (
         <span className="extension-state installed">{status}</span>
@@ -653,58 +763,66 @@ function SyncCard({
     }
   };
 
-  if (status.authenticated) {
-    return (
-      <section className="card">
-        <div className="row">
-          <span className="muted">Account</span>
-          <span>{status.userName ?? status.userEmail ?? "connected"}</span>
-        </div>
-        {status.lastSyncError && <p className="error">{status.lastSyncError}</p>}
-        <button
-          className="ghost small"
-          onClick={async () => {
-            await invoke("logout");
-            onChanged();
-          }}
-        >
-          Sign out
-        </button>
-      </section>
-    );
-  }
-
-  if (!status.configured) {
-    return (
-      <section className="card">
-        <div className="row">
-          <b>Your phone</b>
-          <span className="small-text">coming soon</span>
-        </div>
-        <p className="muted small-text">
-          Sessions here work forever without an account, and without a server.
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <section className="card">
-      <b>Your phone</b>
-      <p className="muted">
-        Optional: one schedule shared between this computer and your phone.
-      </p>
-      {login ? (
+    <section className="card device-card">
+      <div className="device-card-head">
+        <span className="device-heading">
+          <span className="device-platform-marks">
+            <AppleIcon />
+            <AndroidIcon />
+          </span>
+          <b>Your phone</b>
+        </span>
+        <span className={`device-state ${status.authenticated ? "connected" : ""}`}>
+          {status.authenticated ? "Connected" : status.configured ? "Not connected" : "Coming soon"}
+        </span>
+      </div>
+      <div className="device-platform-list" aria-label="Phone availability">
+        <span><AppleIcon />iPhone <em>soon</em></span>
+        <span><AndroidIcon />Android <em>soon</em></span>
+      </div>
+      {status.authenticated ? (
+        <div className="device-account-row">
+          <span className="small-text">{status.userName ?? status.userEmail ?? "Account connected"}</span>
+          <button
+            className="ghost small"
+            onClick={async () => {
+              await invoke("logout");
+              onChanged();
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : status.configured && login ? (
         <>
           <div className="code small-code">{login.userCode}</div>
           <p className="muted">Confirm the code in your browser…</p>
         </>
-      ) : (
+      ) : status.configured ? (
         <button className="ghost pill" disabled={loginBusy} onClick={connect}>
           {loginBusy ? "Waiting…" : "Connect account"}
         </button>
-      )}
+      ) : null}
+      {status.lastSyncError && <p className="error">{status.lastSyncError}</p>}
       {loginError && <p className="error">{loginError}</p>}
+    </section>
+  );
+}
+
+function AgentAccessCard() {
+  return (
+    <section className="card device-card">
+      <div className="device-card-head">
+        <span className="device-heading">
+          <TerminalIcon />
+          <b>Agents + yf CLI</b>
+        </span>
+        <span className="device-state">Coming soon</span>
+      </div>
+      <p className="muted agent-copy">
+        The best way to give agents complete control of yawningface is through the <code>yf</code> CLI.
+      </p>
     </section>
   );
 }
@@ -719,6 +837,11 @@ function SettingsView({
   const [form, setForm] = useState<Settings>(settings);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    applyAppearance(form.appearance);
+    return () => applyAppearance(settings.appearance);
+  }, [form.appearance, settings.appearance]);
 
   const set = (key: keyof Settings, value: string | boolean) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -753,6 +876,23 @@ function SettingsView({
           onChange={(e) => set("launchAtLogin", e.target.checked)}
         />
         Launch at login
+      </label>
+
+      <label>
+        Appearance
+        <select
+          value={form.appearance}
+          onChange={(e) => set("appearance", e.target.value as Appearance)}
+        >
+          {APPEARANCES.map((appearance) => (
+            <option key={appearance.value} value={appearance.value}>
+              {appearance.label}
+            </option>
+          ))}
+        </select>
+        <span className="small-text">
+          System follows your computer’s light or dark appearance.
+        </span>
       </label>
 
       <section className="card settings-about">

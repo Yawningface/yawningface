@@ -32,6 +32,7 @@ pub struct EngineStatus {
     pub hosts_helper_installed: bool,
     pub hosts_in_sync: bool,
     pub session_active: bool,
+    pub session_started_at: Option<String>,
     pub session_until: Option<String>,
 }
 
@@ -58,6 +59,7 @@ pub fn push_event(state: &AppState, r#type: &str, payload: Value) {
 pub async fn run_sync_loop(app: AppHandle) {
     let mut ticks: u64 = 0;
     loop {
+        let _ = crate::native_messaging::drain_events(&app);
         let result = tick(&app).await;
         {
             let state = app.state::<AppState>();
@@ -200,7 +202,14 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         // Auto-expire a session whose end time passed.
         if session.active && !session.is_running() {
             session.active = false;
+            session.started_at = None;
             session.until = None;
+            let _ = save_json(&session_path(app), &*session);
+        } else if session.is_running() && session.started_at.is_none() {
+            // Older local-session files predate progress tracking. Starting
+            // their bar at upgrade time preserves an honest countdown without
+            // pretending we know when that already-running session began.
+            session.started_at = Some(chrono::Utc::now().to_rfc3339());
             let _ = save_json(&session_path(app), &*session);
         }
         session.clone()
@@ -251,6 +260,11 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         status.blocked_apps = block_set.apps.len();
         status.hosts_in_sync = hosts::hosts_section_matches(&block_set.domains);
         status.session_active = session.is_running();
+        status.session_started_at = if session.is_running() {
+            session.started_at.clone()
+        } else {
+            None
+        };
         status.session_until = if session.is_running() {
             session.until.clone()
         } else {

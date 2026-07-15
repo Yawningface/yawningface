@@ -20,6 +20,16 @@ const DEFAULT_AUTH0_AUDIENCE: &str = match option_env!("YF_AUTH0_AUDIENCE") {
     None => "",
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Appearance {
+    Light,
+    Dark,
+    #[default]
+    #[serde(other)]
+    System,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -30,8 +40,7 @@ pub struct Settings {
     pub device_id: Option<String>,
     pub device_name: String,
     pub launch_at_login: bool,
-    /// First run is done; open straight to home from now on.
-    pub onboarded: bool,
+    pub appearance: Appearance,
 }
 
 impl Default for Settings {
@@ -45,7 +54,7 @@ impl Default for Settings {
             device_id: None,
             device_name: host,
             launch_at_login: true,
-            onboarded: false,
+            appearance: Appearance::System,
         }
     }
 }
@@ -95,6 +104,8 @@ pub const DEFAULT_SESSION_DOMAINS: &[&str] = &[
 #[serde(rename_all = "camelCase", default)]
 pub struct LocalSession {
     pub active: bool,
+    /// RFC3339 start time, used for the timed-session progress display.
+    pub started_at: Option<String>,
     /// RFC3339 end time; None while active means "until I stop it".
     pub until: Option<String>,
     /// Extra domains/apps; the defaults above are always included.
@@ -167,5 +178,24 @@ pub fn platform() -> &'static str {
     #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
     {
         "linux"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_settings_default_to_system_appearance() {
+        let settings: Settings = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(matches!(settings.appearance, Appearance::System));
+    }
+
+    #[test]
+    fn appearance_serializes_as_a_stable_lowercase_value() {
+        let mut settings = Settings::default();
+        settings.appearance = Appearance::Dark;
+        let value = serde_json::to_value(settings).unwrap();
+        assert_eq!(value["appearance"], "dark");
     }
 }

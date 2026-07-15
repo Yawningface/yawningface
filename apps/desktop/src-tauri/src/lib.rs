@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod browser_extensions;
 pub mod blocking;
+pub mod native_messaging;
 pub mod schedule;
 pub mod settings;
 pub mod state;
@@ -126,9 +127,11 @@ async fn start_session(app: AppHandle, minutes: Option<u64>) -> Result<EngineSta
     {
         let state = app.state::<AppState>();
         let mut session = state.local_session.lock().unwrap();
+        let started_at = chrono::Utc::now();
         session.active = true;
+        session.started_at = Some(started_at.to_rfc3339());
         session.until = minutes.map(|m| {
-            (chrono::Utc::now() + chrono::Duration::minutes(m as i64)).to_rfc3339()
+            (started_at + chrono::Duration::minutes(m as i64)).to_rfc3339()
         });
         save_json(&sync::session_path(&app), &*session)?;
         sync::push_event(&state, "session_start", json!({ "minutes": minutes, "local": true }));
@@ -140,6 +143,7 @@ async fn start_session(app: AppHandle, minutes: Option<u64>) -> Result<EngineSta
 /// The on-device history behind the Insights page.
 #[tauri::command]
 fn get_stats(app: AppHandle) -> stats::Stats {
+    let _ = native_messaging::drain_events(&app);
     let state = app.state::<AppState>();
     let stats = state.stats.lock().unwrap();
     stats.clone()
@@ -162,6 +166,7 @@ async fn stop_session(app: AppHandle) -> Result<EngineStatus, String> {
         let state = app.state::<AppState>();
         let mut session = state.local_session.lock().unwrap();
         session.active = false;
+        session.started_at = None;
         session.until = None;
         save_json(&sync::session_path(&app), &*session)?;
         sync::push_event(
@@ -229,43 +234,14 @@ async fn save_local_config(
     sync_now(app).await
 }
 
-/// Progress of the one-time setup, so the first-run screen can show what is
-/// actually happening instead of a spinner. `state` is one of
-/// "running" | "done" | "failed".
-fn setup_step(app: &AppHandle, step: &str, state: &str, detail: &str) {
-    let _ = app.emit(
-        "yf://setup",
-        json!({ "step": step, "state": state, "detail": detail }),
-    );
-}
-
 #[tauri::command]
 async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
-    setup_step(
-        &app,
-        "approve",
-        "running",
-        "Windows will ask you to approve this once.",
-    );
-
     // Blocking admin-prompt call; run it off the async runtime.
-    let installed = tauri::async_runtime::spawn_blocking(blocking::platform::install_helper)
+    tauri::async_runtime::spawn_blocking(blocking::platform::install_helper)
         .await
-        .map_err(|e| e.to_string())?;
-    if let Err(e) = installed {
-        setup_step(&app, "approve", "failed", &e);
-        return Err(e);
-    }
-    setup_step(&app, "approve", "done", "Approved.");
-    setup_step(
-        &app,
-        "helper",
-        "done",
-        "Installed the blocking helper and its system task.",
-    );
+        .map_err(|e| e.to_string())??;
 
     // Re-write the spool so the fresh helper applies the current state.
-    setup_step(&app, "apply", "running", "Applying your blocklist.");
     let domains = {
         let state = app.state::<AppState>();
         let d = state.last_domains.lock().unwrap().clone().unwrap_or_default();
@@ -273,23 +249,8 @@ async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
     };
     blocking::hosts::write_spool(&domains)?;
     blocking::platform::trigger_apply();
-    let _ = sync_now(app.clone()).await;
-    setup_step(
-        &app,
-        "apply",
-        "done",
-        "Blocking works system-wide, in every browser.",
-    );
+    let _ = sync_now(app).await;
     Ok(())
-}
-
-/// Marks first-run onboarding as finished, so the app opens straight to home.
-#[tauri::command]
-fn finish_onboarding(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<AppState>();
-    let mut settings = state.settings.lock().unwrap();
-    settings.onboarded = true;
-    save_json(&sync::settings_path(&app), &*settings)
 }
 
 fn set_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
@@ -466,8 +427,7 @@ pub fn run() {
             save_local_config,
             get_stats,
             get_browser_extensions,
-            setup_hosts_helper,
-            finish_onboarding
+            setup_hosts_helper
         ])
         .setup(|app| {
             // Load persisted state.
@@ -483,6 +443,12 @@ pub fn run() {
                 local_session,
                 stats,
             ));
+
+            // Per-user registration needs no elevation. Repeating it repairs
+            // the executable path after an update, and the initial drain makes
+            // attempts recorded while the app was closed visible immediately.
+            let _ = native_messaging::install_host();
+            let _ = native_messaging::drain_events(&handle);
 
             // Default-enable launch at login on first run.
             let _ = set_autostart(&handle, settings.launch_at_login);

@@ -105,7 +105,12 @@ export default function Insights() {
 
   if (!ins) return <section className="page" />;
 
-  if (ins.totalMinutes === 0 && ins.sessions === 0) {
+  if (
+    ins.totalMinutes === 0 &&
+    ins.sessions === 0 &&
+    ins.topSites.length === 0 &&
+    ins.topApps.length === 0
+  ) {
     return (
       <section className="page">
         <h2>Insights</h2>
@@ -176,15 +181,34 @@ export default function Insights() {
         </section>
 
         <section className="card wide">
+          <b>Websites that kept trying</b>
+          <p className="muted">
+            Navigations stopped by the yawningface browser extension.
+          </p>
+          {ins.topSites.length === 0 ? (
+            <p className="small-text">
+              None yet. Attempts will appear here after the browser extension
+              and desktop app connect.
+            </p>
+          ) : (
+            <div className="app-tags">
+              {ins.topSites.map((site) => (
+                <span className="app-tag" key={site.domain}>
+                  {site.domain}
+                  <span className="app-count">{site.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card wide">
           <b>Apps that kept trying</b>
           <p className="muted">
             Apps yawningface closed for you while a block was on.
           </p>
           {ins.topApps.length === 0 ? (
-            <p className="small-text">
-              None yet. System-wide website blocking cannot see visits; the
-              browser extension records website attempts on its block page.
-            </p>
+            <p className="small-text">None yet.</p>
           ) : (
             <div className="app-tags">
               {ins.topApps.map((a) => (

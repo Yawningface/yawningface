@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
 
-pub const EXTENSION_ID: &str = "kfnhibndbkdjcplihjhbhdhclpbiocen";
+pub const EXTENSION_ID: &str = crate::native_messaging::GITHUB_EXTENSION_ID;
+pub const EXTENSION_IDS: [&str; 2] = crate::native_messaging::EXTENSION_IDS;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +58,7 @@ fn scan_browser(spec: BrowserSpec) -> BrowserExtensionStatus {
     let profiles = profile_dirs(&spec.data_root);
     let states: Vec<_> = profiles
         .iter()
-        .map(|profile| scan_profile(profile, EXTENSION_ID))
+        .map(|profile| scan_profile(profile))
         .collect();
 
     BrowserExtensionStatus {
@@ -120,7 +121,21 @@ fn profile_dirs(root: &Path) -> Vec<PathBuf> {
     profiles.into_iter().collect()
 }
 
-fn scan_profile(profile: &Path, extension_id: &str) -> ProfileState {
+fn scan_profile(profile: &Path) -> ProfileState {
+    let states: Vec<_> = EXTENSION_IDS
+        .iter()
+        .map(|extension_id| scan_profile_id(profile, extension_id))
+        .collect();
+    if states.contains(&ProfileState::Enabled) {
+        ProfileState::Enabled
+    } else if states.contains(&ProfileState::Disabled) {
+        ProfileState::Disabled
+    } else {
+        ProfileState::Missing
+    }
+}
+
+fn scan_profile_id(profile: &Path, extension_id: &str) -> ProfileState {
     let mut found = false;
     for name in ["Secure Preferences", "Preferences"] {
         let Some(json) = read_json(&profile.join(name)) else {

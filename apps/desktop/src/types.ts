@@ -1,3 +1,5 @@
+export type Appearance = "system" | "light" | "dark";
+
 export interface Settings {
   apiBaseUrl: string;
   auth0Domain: string;
@@ -6,14 +8,20 @@ export interface Settings {
   deviceId: string | null;
   deviceName: string;
   launchAtLogin: boolean;
-  onboarded: boolean;
+  appearance: Appearance;
 }
 
 export interface DayStat {
   focusSeconds: number;
   sessions: number;
   appsBlocked: number;
+  sitesBlocked: number;
   cancellations: number;
+}
+
+export interface SiteAttempt {
+  occurredAt: string;
+  domain: string;
 }
 
 export interface ActivitySpan {
@@ -32,18 +40,12 @@ export interface Cancellation {
 export interface Stats {
   days: Record<string, DayStat>;
   blockedApps: Record<string, number>;
+  blockedSites: Record<string, number>;
   longestFocusSeconds: number;
   currentFocusSeconds: number;
   activity: ActivitySpan[];
   cancellations: Cancellation[];
-}
-
-export type SetupStepState = "idle" | "running" | "done" | "failed";
-
-export interface SetupEvent {
-  step: string;
-  state: SetupStepState;
-  detail: string;
+  siteAttempts: SiteAttempt[];
 }
 
 export interface EngineStatus {
@@ -60,6 +62,7 @@ export interface EngineStatus {
   hostsHelperInstalled: boolean;
   hostsInSync: boolean;
   sessionActive: boolean;
+  sessionStartedAt: string | null;
   sessionUntil: string | null;
 }
 

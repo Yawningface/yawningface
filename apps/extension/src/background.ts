@@ -20,6 +20,11 @@ import {
   type Session,
 } from "./engine";
 import { queueEvent, syncCloud } from "./cloud";
+import {
+  flushDesktopEvents,
+  queueDesktopAttempt,
+  queueLegacyAttemptCounts,
+} from "./native";
 
 const TICK = "yf-tick";
 /** One minute is the finest granularity chrome.alarms allows. */
@@ -61,6 +66,8 @@ async function tick(): Promise<void> {
   await paintIcon(domains.length > 0, reasons);
   await beat();
   await syncCloud();
+  await queueLegacyAttemptCounts();
+  void flushDesktopEvents();
 }
 
 /** An event when the block set actually changes, rather than once a minute
@@ -143,6 +150,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       attempts[msg.domain] = (attempts[msg.domain] ?? 0) + 1;
       await chrome.storage.local.set({ attempts });
       await queueEvent("site_blocked", { domain: msg.domain });
+      await queueDesktopAttempt(msg.domain);
       sendResponse({ ok: true });
     })();
     return true;
