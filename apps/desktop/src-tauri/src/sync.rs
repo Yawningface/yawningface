@@ -214,25 +214,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         }
         session.clone()
     };
-    let mut browser_excluded_domains = std::collections::BTreeSet::new();
     if session.is_running() {
-        let explicit_session_domains: std::collections::BTreeSet<String> = session
-            .domains
-            .iter()
-            .map(|domain| schedule::normalize_domain(domain))
-            .filter(|domain| !domain.is_empty())
-            .collect();
-        let youtube_was_explicit = block_set.domains.contains("youtube.com")
-            || block_set.domains.contains("music.youtube.com")
-            || explicit_session_domains.contains("youtube.com")
-            || explicit_session_domains.contains("music.youtube.com");
-        if !youtube_was_explicit {
-            browser_excluded_domains.extend(
-                crate::settings::DEFAULT_SESSION_DOMAIN_EXCLUSIONS
-                    .iter()
-                    .map(|domain| domain.to_string()),
-            );
-        }
         block_set
             .active_lists
             .push("Working session".to_string());
@@ -259,6 +241,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     block_set
         .domains
         .retain(|domain| !browser_exemptions.contains(domain));
+    let browser_excluded_domains = browser_domain_exclusions(&block_set.domains);
 
     // 4. Apply blocking.
     apply_block_set(app, &block_set)?;
@@ -309,6 +292,14 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         };
     }
     Ok(())
+}
+
+fn browser_domain_exclusions(domains: &BTreeSet<String>) -> BTreeSet<String> {
+    crate::settings::DEFAULT_BROWSER_DOMAIN_EXCLUSIONS
+        .iter()
+        .filter(|(parent, child)| domains.contains(*parent) && !domains.contains(*child))
+        .map(|(_, child)| child.to_string())
+        .collect()
 }
 
 pub fn session_path(app: &AppHandle) -> std::path::PathBuf {
@@ -492,4 +483,21 @@ fn app_config_dir(app: &AppHandle) -> std::path::PathBuf {
     app.path()
         .app_config_dir()
         .unwrap_or_else(|_| hosts::data_dir())
+}
+
+#[cfg(test)]
+mod browser_exclusion_tests {
+    use super::*;
+
+    #[test]
+    fn parent_block_keeps_default_child_open_until_child_is_explicit() {
+        let youtube = BTreeSet::from(["youtube.com".to_string()]);
+        assert!(browser_domain_exclusions(&youtube).contains("music.youtube.com"));
+
+        let explicit_music = BTreeSet::from([
+            "youtube.com".to_string(),
+            "music.youtube.com".to_string(),
+        ]);
+        assert!(browser_domain_exclusions(&explicit_music).is_empty());
+    }
 }
