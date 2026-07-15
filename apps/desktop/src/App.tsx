@@ -599,7 +599,7 @@ function ScheduledSessionsCard({
 
 const IS_MAC = navigator.userAgent.includes("Mac");
 const EXTENSION_URL =
-  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.9";
+  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.10";
 
 function CompanionsCard({ status }: { status: EngineStatus }) {
   const [extensionScan, setExtensionScan] = useState<BrowserExtensionScan | null>(null);

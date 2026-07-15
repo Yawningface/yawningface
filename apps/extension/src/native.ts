@@ -34,6 +34,7 @@ export function applyDesktopAppearance(state: DesktopState | null): void {
 export interface DesktopUnblockResponse {
   ok: boolean;
   minutes?: number;
+  domains?: string[];
   until?: string;
   error?: string;
 }

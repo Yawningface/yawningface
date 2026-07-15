@@ -27,6 +27,7 @@ const PROTOCOL_VERSION: u32 = 1;
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 const MAX_IMPORTED_DOMAINS: usize = 2_000;
 pub const UNBLOCK_MINUTES: u32 = 10;
+const EQUIVALENT_DOMAIN_GROUPS: &[&[&str]] = &[&["twitter.com", "x.com"]];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -84,6 +85,8 @@ struct IncomingMessage {
 pub struct BrowserExemption {
     pub event_id: String,
     pub domain: String,
+    #[serde(default)]
+    pub domains: Vec<String>,
     pub reason: String,
     pub occurred_at: String,
     pub until: String,
@@ -254,15 +257,17 @@ fn handle_unblock_request(
     // message can describe an event, but it cannot mint a longer exemption by
     // sending a timestamp in the future.
     let occurred = Utc::now();
+    let domains = exemption_domains(&domain, &state);
 
     let exemption = persist_exemption(BrowserExemption {
         event_id: raw.event_id.clone(),
         domain: domain.clone(),
+        domains: domains.iter().cloned().collect(),
         reason: reason.clone(),
         occurred_at: occurred.to_rfc3339(),
         until: (occurred + chrono::Duration::minutes(UNBLOCK_MINUTES as i64)).to_rfc3339(),
     })?;
-    if let Err(error) = apply_exemption_now(&domain) {
+    if let Err(error) = apply_exemption_now(&domains) {
         remove_exemption(&raw.event_id);
         return Err(error);
     }
@@ -282,6 +287,7 @@ fn handle_unblock_request(
         "ok": true,
         "eventId": raw.event_id,
         "minutes": UNBLOCK_MINUTES,
+        "domains": exemption.domains,
         "until": exemption.until
     }))
 }
@@ -303,6 +309,20 @@ fn validate_unblock_request(
         return Err("Write a reason of 500 characters or fewer.".into());
     }
     Ok((domain, reason))
+}
+
+fn exemption_domains(domain: &str, state: &BrowserBridgeState) -> BTreeSet<String> {
+    let group = EQUIVALENT_DOMAIN_GROUPS
+        .iter()
+        .find(|group| group.contains(&domain));
+    let candidates: Vec<&str> = group
+        .map(|group| group.to_vec())
+        .unwrap_or_else(|| vec![domain]);
+    candidates
+        .into_iter()
+        .filter(|candidate| state.domains.iter().any(|active| active == candidate))
+        .map(str::to_string)
+        .collect()
 }
 
 fn normalize_domain(value: &str) -> Option<String> {
@@ -458,7 +478,11 @@ pub fn active_exemptions() -> BTreeSet<String> {
                     .map(|until| until.with_timezone(&Utc) > now)
                     .unwrap_or(false) =>
             {
-                active.insert(exemption.domain);
+                if exemption.domains.is_empty() {
+                    active.insert(exemption.domain);
+                } else {
+                    active.extend(exemption.domains);
+                }
             }
             Some(_) => {
                 let _ = std::fs::remove_file(path);
@@ -474,13 +498,14 @@ pub fn active_exemptions() -> BTreeSet<String> {
 /// Remove the requested domain from the current hosts spool immediately. The
 /// normal engine reads the exemption receipt on its next tick and keeps the
 /// domain out until the ten-minute window expires.
-fn apply_exemption_now(domain: &str) -> Result<(), String> {
+fn apply_exemption_now(exempted_domains: &BTreeSet<String>) -> Result<(), String> {
     let content = std::fs::read_to_string(crate::blocking::hosts::spool_path()).unwrap_or_default();
     let domains: BTreeSet<String> = content
         .lines()
         .map(|line| line.trim().to_ascii_lowercase())
         .filter(|candidate| {
-            crate::blocking::hosts::is_valid_domain(candidate) && candidate != domain
+            crate::blocking::hosts::is_valid_domain(candidate)
+                && !exempted_domains.contains(candidate)
         })
         .collect();
     crate::blocking::hosts::write_spool(&domains)?;
@@ -490,7 +515,10 @@ fn apply_exemption_now(domain: &str) -> Result<(), String> {
     // actually removed the managed hosts entry. Otherwise Chrome can race the
     // task and show the exact ERR_NAME_NOT_RESOLVED screen this bridge avoids.
     for _ in 0..50 {
-        if !managed_hosts_contains(domain) {
+        if exempted_domains
+            .iter()
+            .all(|domain| !managed_hosts_contains(domain))
+        {
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
@@ -762,6 +790,19 @@ mod tests {
         };
         let error = validate_unblock_request(&message, &state).unwrap_err();
         assert!(error.contains("Write a reason"));
+    }
+
+    #[test]
+    fn twitter_and_x_share_one_exception_window() {
+        let state = BrowserBridgeState {
+            available: true,
+            domains: vec!["twitter.com".into(), "x.com".into()],
+            ..Default::default()
+        };
+        assert_eq!(
+            exemption_domains("twitter.com", &state),
+            BTreeSet::from(["twitter.com".to_string(), "x.com".to_string()])
+        );
     }
 
     #[test]

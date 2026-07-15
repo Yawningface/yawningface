@@ -30,6 +30,7 @@ test("desktop state drives rules and exceptions", async () => {
   ]);
   assert.match(background, /applyDesktopState/);
   assert.match(background, /requestDesktopUnblock/);
+  assert.match(background, /response\.domains\?\.length/);
   assert.match(background, /state\?\.domains\.includes\(msg\.domain\)/);
   assert.doesNotMatch(background, /startSession|evaluate\(/);
   assert.match(rules, /declarativeNetRequest\.updateDynamicRules/);

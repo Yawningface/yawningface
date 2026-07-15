@@ -158,10 +158,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const stored = await chrome.storage.local.get("bridgeUnblocks");
       const unblocks =
         (stored.bridgeUnblocks as BridgeUnblock[] | undefined) ?? [];
-      unblocks.push({
-        domain: msg.domain,
-        until: new Date(response.until).getTime(),
-      });
+      const until = new Date(response.until).getTime();
+      for (const domain of response.domains?.length
+        ? response.domains
+        : [msg.domain]) {
+        unblocks.push({ domain, until });
+      }
       await chrome.storage.local.set({ bridgeUnblocks: unblocks.slice(-100) });
       await applyDesktopState(null, true);
       sendResponse(response);
