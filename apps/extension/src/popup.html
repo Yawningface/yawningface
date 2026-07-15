@@ -8,12 +8,15 @@
   <body>
     <main class="popup">
       <div class="state">
-        <div class="state-emoji" id="emoji">😴</div>
+        <div class="state-emoji" id="emoji">&#x1F634;</div>
         <div class="state-line" id="state">Nothing blocked right now.</div>
         <div class="small-text" id="detail"></div>
       </div>
 
       <button class="primary" id="refresh">Refresh from desktop</button>
+      <div class="small-text sync-status" id="sync-status" aria-live="polite">
+        Checking desktop connection...
+      </div>
 
       <div class="small-text" id="hint">
         Desktop owns your sessions and schedules. This companion redirects

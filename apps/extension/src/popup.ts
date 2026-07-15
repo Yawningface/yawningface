@@ -14,6 +14,7 @@ async function render(): Promise<void> {
   const stored = await chrome.storage.local.get([
     "desktopState",
     "desktopConnected",
+    "desktopBridgeError",
   ]);
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
   const connected = stored.desktopConnected === true;
@@ -24,7 +25,28 @@ async function render(): Promise<void> {
     $("detail").textContent =
       "Open or update yawningface desktop, then refresh this companion.";
     $("today").textContent = "";
+    $("sync-status").textContent = stored.desktopBridgeError
+      ? `Connection error: ${String(stored.desktopBridgeError)}`
+      : "Desktop connection unavailable.";
+    $("sync-status").classList.add("error-text");
     return;
+  }
+
+  if (stored.desktopBridgeError) {
+    $("sync-status").textContent = `Browser rule error: ${String(stored.desktopBridgeError)}`;
+    $("sync-status").classList.add("error-text");
+  } else {
+    $("sync-status").classList.remove("error-text");
+  }
+  const updated = state?.updatedAt
+    ? new Date(state.updatedAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "just now";
+  if (!stored.desktopBridgeError) {
+    $("sync-status").textContent = `Connected to desktop / state updated ${updated}`;
   }
 
   $("today").textContent = humanDuration(state?.focusedTodaySeconds ?? 0);
@@ -52,13 +74,33 @@ async function render(): Promise<void> {
 $("refresh").addEventListener("click", async () => {
   const button = $("refresh") as HTMLButtonElement;
   button.disabled = true;
-  button.textContent = "Refreshing...";
+  button.textContent = "Syncing...";
   try {
-    await chrome.runtime.sendMessage({ type: "yf:refresh" });
+    const response = (await chrome.runtime.sendMessage({ type: "yf:refresh" })) as {
+      ok?: boolean;
+      connected?: boolean;
+      error?: string | null;
+    };
     await render();
+    if (!response?.ok || !response.connected) {
+      $("sync-status").textContent = response?.error ?? "Desktop did not reply.";
+      $("sync-status").classList.add("error-text");
+      button.textContent = "Try again";
+      return;
+    }
+    $("sync-status").textContent = `Connected / synced ${new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })}`;
+    button.textContent = "Synced";
+  } catch (error) {
+    $("sync-status").textContent =
+      error instanceof Error ? error.message : String(error);
+    $("sync-status").classList.add("error-text");
+    button.textContent = "Try again";
   } finally {
     button.disabled = false;
-    button.textContent = "Refresh from desktop";
   }
 });
 

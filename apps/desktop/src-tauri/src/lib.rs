@@ -20,7 +20,7 @@ use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
 use crate::auth::DeviceCodeInfo;
-use crate::settings::{load_json, save_json, LocalSession, Settings, Tokens};
+use crate::settings::{Appearance, load_json, save_json, LocalSession, Settings, Tokens};
 use crate::state::AppState;
 use crate::sync::EngineStatus;
 
@@ -46,6 +46,22 @@ fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     *state.settings.lock().unwrap() = settings.clone();
     let _ = set_autostart(&app, settings.launch_at_login);
     Ok(())
+}
+
+/// Appearance is an immediate preference. Updating only this field avoids an
+/// in-progress Settings form overwriting fresher account/device fields.
+#[tauri::command]
+fn save_appearance(app: AppHandle, appearance: Appearance) -> Result<Settings, String> {
+    let state = app.state::<AppState>();
+    let settings = {
+        let current = state.settings.lock().unwrap();
+        let mut next = current.clone();
+        next.appearance = appearance;
+        next
+    };
+    save_json(&sync::settings_path(&app), &settings)?;
+    *state.settings.lock().unwrap() = settings.clone();
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -417,6 +433,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             save_settings,
+            save_appearance,
             login_start,
             login_poll,
             logout,

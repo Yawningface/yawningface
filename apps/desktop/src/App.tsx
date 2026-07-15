@@ -188,6 +188,7 @@ export default function App() {
         {view === "settings" && (
           <SettingsView
             settings={settings}
+            onSettingsChanged={setSettings}
             onSaved={async () => {
               await refresh();
               setView("focus");
@@ -544,7 +545,7 @@ function ScheduledSessionsCard({
 
 const IS_MAC = navigator.userAgent.includes("Mac");
 const EXTENSION_URL =
-  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.2";
+  "https://github.com/Yawningface/yawningface/releases/tag/extension-v0.1.4";
 
 function CompanionsCard({ status }: { status: EngineStatus }) {
   const [extensionScan, setExtensionScan] = useState<BrowserExtensionScan | null>(null);
@@ -829,29 +830,51 @@ function AgentAccessCard() {
 
 function SettingsView({
   settings,
+  onSettingsChanged,
   onSaved,
 }: {
   settings: Settings;
-  onSaved: () => void;
+  onSettingsChanged: (settings: Settings) => void;
+  onSaved: () => Promise<void>;
 }) {
   const [form, setForm] = useState<Settings>(settings);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [appearanceBusy, setAppearanceBusy] = useState(false);
 
   useEffect(() => {
     applyAppearance(form.appearance);
-    return () => applyAppearance(settings.appearance);
-  }, [form.appearance, settings.appearance]);
+  }, [form.appearance]);
 
   const set = (key: keyof Settings, value: string | boolean) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const saveAppearance = async (appearance: Appearance) => {
+    const previous = settings.appearance;
+    setForm((current) => ({ ...current, appearance }));
+    setAppearanceBusy(true);
+    setError(null);
+    try {
+      // Appearance is immediate and has a narrow native command so unfinished
+      // edits elsewhere in this form cannot overwrite fresher desktop state.
+      const persisted = await invoke<Settings>("save_appearance", { appearance });
+      onSettingsChanged(persisted);
+    } catch (e) {
+      setForm((current) => ({ ...current, appearance: previous }));
+      applyAppearance(previous);
+      setError(String(e));
+    } finally {
+      setAppearanceBusy(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
       await invoke("save_settings", { settings: form });
-      onSaved();
+      onSettingsChanged(form);
+      await onSaved();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -882,7 +905,8 @@ function SettingsView({
         Appearance
         <select
           value={form.appearance}
-          onChange={(e) => set("appearance", e.target.value as Appearance)}
+          disabled={appearanceBusy}
+          onChange={(e) => void saveAppearance(e.target.value as Appearance)}
         >
           {APPEARANCES.map((appearance) => (
             <option key={appearance.value} value={appearance.value}>

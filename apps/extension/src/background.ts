@@ -48,13 +48,15 @@ async function applyDesktopState(
   const domains = (state?.domains ?? []).filter((domain) => !exemptions.has(domain));
   await applyRules(domains);
   await paintIcon(domains.length > 0, state?.reasons ?? [], connected);
+  await chrome.storage.local.remove("desktopBridgeError");
 }
 
-async function refresh(): Promise<void> {
+async function refresh(): Promise<DesktopState | null> {
   const state = await getDesktopState();
   await applyDesktopState(state, state !== null);
   await queueLegacyAttemptCounts();
   void flushDesktopEvents();
+  return state;
 }
 
 async function paintIcon(
@@ -90,12 +92,28 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // A persistent native port keeps desktop state and browser rules within a
 // couple of seconds of one another. The alarm above remains the recovery path.
 watchDesktopState((state) => {
-  void applyDesktopState(state, state !== null);
+  void applyDesktopState(state, state !== null).catch(async (error) => {
+    await chrome.storage.local.set({ desktopBridgeError: String(error) });
+  });
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "yf:apply" || msg?.type === "yf:refresh") {
-    void refresh().then(() => sendResponse({ ok: true }));
+    void (async () => {
+      try {
+        const state = await refresh();
+        sendResponse({
+          ok: state !== null,
+          connected: state !== null,
+          updatedAt: state?.updatedAt ?? null,
+          error: state ? null : "The desktop native bridge did not reply.",
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await chrome.storage.local.set({ desktopBridgeError: message });
+        sendResponse({ ok: false, connected: false, error: message });
+      }
+    })();
     return true;
   }
 

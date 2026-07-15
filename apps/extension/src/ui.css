@@ -154,6 +154,15 @@ button:disabled {
   font-size: 14.5px;
 }
 
+.sync-status {
+  min-height: 18px;
+  text-align: center;
+}
+
+.error-text {
+  color: var(--danger);
+}
+
 /* iOS-style segmented duration picker, in brand yellow */
 .segmented {
   position: relative;
