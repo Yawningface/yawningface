@@ -40,10 +40,18 @@ test("desktop state drives rules and exceptions", async () => {
   assert.match(native, /document\.documentElement\.dataset\.theme/);
 });
 
-test("blocked page uses the uncropped Goya plate and keeps escape secondary", async () => {
-  const [html, css] = await Promise.all([read("blocked.html"), read("ui.css")]);
+test("blocked page uses Goya and offers explicit working exits", async () => {
+  const [html, css, script] = await Promise.all([
+    read("blocked.html"),
+    read("ui.css"),
+    read("blocked.ts"),
+  ]);
   assert.match(html, /Goya's etching The Sleep of Reason Produces Monsters/);
   assert.match(html, /class="blocked-exit"/);
+  assert.match(html, /Close this tab/);
+  assert.match(html, /Unblock with a reason/);
   assert.match(css, /url\("art\/goya\.webp"\)/);
-  assert.match(css, /\.unblock-whisper[\s\S]*opacity: 0\.34/);
+  assert.match(css, /\.unblock-entry[\s\S]*border: 1px solid/);
+  assert.match(script, /chrome\.tabs\.remove\(tab\.id\)/);
+  assert.doesNotMatch(script, /about:blank/);
 });

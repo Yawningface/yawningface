@@ -1,6 +1,6 @@
 {
   "name": "@yawningface/extension",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Browser companion for yawningface desktop: custom block pages, Insights events, and reason-gated exceptions.",
   "license": "MIT",

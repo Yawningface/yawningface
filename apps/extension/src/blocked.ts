@@ -54,8 +54,11 @@ async function render(): Promise<void> {
   }
   $("unblocks").textContent = String(state?.unblocksToday ?? 0);
 
-  $("keep").addEventListener("click", () => {
-    location.href = "about:blank";
+  $("close-tab").addEventListener("click", async () => {
+    const tab = await chrome.tabs.getCurrent();
+    if (tab?.id !== undefined) {
+      await chrome.tabs.remove(tab.id);
+    }
   });
 
   const form = $("unblock-reason") as HTMLFormElement;
