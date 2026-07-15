@@ -23,3 +23,7 @@ xcuserdata/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# iphone deploy.sh screenshot
+/shot.png
+apps/iphone/shot.png

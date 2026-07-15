@@ -1,171 +1,229 @@
 ---
 name: claude-autonomous-iphone-development
-description: Use when setting up or running the remote iPhone development loop - building, launching, screenshotting, and iterating apps/iphone on the Tailscale Mac mini from the Windows machine (or autonomously on the mini itself), including serve-sim streaming and on-device testing.
+description: Use when building, running, screenshotting, or flashing apps/iphone (the YawningFace Screen Time app) from the Windows machine by driving the Mac mini over SSH. Covers the one-command deploy loop, simulator vs real device, the codesigning keychain wall, editing the Xcode project headlessly, and every error we have actually hit.
 ---
 
-# Claude autonomous iPhone development
+# Developing the iPhone app from Windows, via the Mac mini
 
-The levelsio pattern (agent → SSH → headless Mac → `xcodebuild`/`simctl` →
-screenshots → vision → iterate), adapted to Xuban's hardware: **no MacinCloud
-rental - his own Mac mini is already on Tailscale** (it self-hosts
-boringtube-2), and this Windows machine is on the same tailnet. Total cost: $0.
+The iPhone app (`apps/iphone`) can only be built on a Mac. We do not own a Mac
+workstation to sit at; we own a **headless Mac mini on the same WiFi**. So the
+whole loop is: edit Swift on Windows -> push the source to the mini over SSH ->
+`xcodebuild` there -> install on the simulator or the real iPhone -> screenshot
+-> look -> repeat. This file is a runbook: follow it top to bottom and the loop
+works. Every command here was run live and verified.
 
-```
-Windows (this box)                     Mac mini (tailnet)
-Claude Code, repo clone   --SSH/scp--> Xcode + iOS Simulator + serve-sim
-edits Swift, reads shots  <--git------ repo clone, builds & runs the app
-        │                                   │
-        └── browser http://localhost:3200 ──┘   (serve-sim over ssh -L)
-                                            └── physical iPhone via USB
-                                                (devicectl, Screen Time tests)
-```
+## TL;DR - the one command
 
-## ⚠️ The constraint levelsio doesn't have
-
-**FamilyControls / ManagedSettings / DeviceActivity do NOT work in the
-Simulator.** The simulator loop covers UI, onboarding, sync, the coach screen
- -  ~90% of remaining work - but shields only fire on a **physical iPhone**
-(plug it into the mini, see "On-device", and [[ios-screentime]]). Keep the
-blocking engine behind a protocol with a simulator mock so the loop never
-stalls on it.
-
-## Facts for this specific setup (confirmed 2026-07-13, live)
-
-| Fact | Value |
-| --- | --- |
-| How to reach it | **LAN, not Tailscale.** Tailscale is not installed on the mini; the LAN is faster anyway. |
-| Hostname / IP | `xubans-mac-mini.local` -> `192.168.1.134` (mDNS resolves from Windows) |
-| macOS user | `xubanceccon` |
-| SSH alias | `ssh mini` (mDNS) or `ssh mini-lan` (hardcoded IP), both in ~/.ssh/config |
-| macOS / hardware | 26.3.1, Apple silicon (arm64) |
-| Xcode | 26.6 (17F113), at /Applications/Xcode.app, already xcode-select'ed |
-| iOS runtime | iOS 26.5 Simulator, via `xcodebuild -downloadPlatform iOS` (no sudo needed) |
-| Targets (no shared schemes!) | `YawningFace`, `DeviceActivityMonitorExtension`. Use `-target`, not `-scheme`. |
-| Source on the mini | `~/yawningface` |
-| sudo | **needs a password.** Nothing that requires root can be automated from here. |
-
-## Getting code onto the mini
-
-The repo is **private and deploy keys are disabled org-wide**, and the mini's
-key is not on GitHub. Do not fight this: push the source over SSH instead.
+From the repo root on Windows (Git Bash / the Bash tool):
 
 ```bash
-# from the repo root on Windows
-tar czf - apps/iphone | ssh mini "mkdir -p ~/yawningface && tar xzf - -C ~/yawningface"
+./apps/iphone/deploy.sh sim     # build -> simulator -> pull ./shot.png (then Read it)
+./apps/iphone/deploy.sh         # build -> SIGN -> install + launch on the real iPhone
 ```
 
-## Building
+`deploy.sh` does the sync, the build, the signing dance, the install and the
+launch, and prints where it got stuck if it fails. If that command works you do
+not need the rest of this file. Read on when it does not, or when you are
+setting the machine up from scratch, or when you need to change the Xcode
+project.
 
-```bash
-ssh mini "cd ~/yawningface/apps/iphone && xcodebuild \
-  -project YawningFace.xcodeproj -target YawningFace \
-  -sdk iphonesimulator -configuration Debug \
-  CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E 'error:|BUILD'"
-```
+## The mental model (read this once)
 
-Disk is the recurring hazard on this machine: Xcode plus one runtime is ~35 GB
-and the mini runs Docker (boringtube-2, xupanel, blogbot, portainer). Check
-`df -h /` before any big download.
+- **The mini is a build slave, not a workstation.** Nobody looks at its screen.
+  It is reached only by `ssh mini`.
+- **Source gets there by tar-over-SSH, never git.** The repo is private, org
+  policy disables deploy keys, and the mini's key is not on GitHub. Do not try
+  to `git pull` on the mini. `deploy.sh` does `tar czf - apps/iphone | ssh mini
+  "tar xzf - -C ~/yawningface"`. It is instant on the LAN and needs no
+  credentials.
+- **Two build paths, and they differ only in signing.** The **simulator** needs
+  no signing, so it runs straight over SSH. The **real device** must be
+  code-signed, and here is the one hard truth of this whole setup:
+
+  > **codesign cannot reach the login keychain from a plain SSH session.** It
+  > fails with `errSecInternalComponent`. The private signing key lives in the
+  > GUI login session, and an SSH session is not in it.
+
+  The fix, which `deploy.sh` automates: write the build commands into a
+  `~/yf-install.command` file and `open` it. Finder runs `.command` files
+  **inside the GUI session**, where the keychain is reachable. That is why the
+  device path looks convoluted; it has to be.
+
+- **The Simulator cannot run Screen Time.** FamilyControls / DeviceActivity /
+  ManagedSettings and the shield extensions **do nothing in the Simulator** -
+  Apple only implements them on real hardware. Use the simulator for UI, layout,
+  onboarding, navigation, Insights rendering. Use the **real iPhone** for
+  anything that actually blocks. See [[ios-screentime]].
 
 ## One-time setup
 
-**Windows side** (PowerShell; OpenSSH client is built in):
-```powershell
-ssh-keygen -t ed25519            # if no key yet
-type $env:USERPROFILE\.ssh\id_ed25519.pub   # copy this
-Add-Content $env:USERPROFILE\.ssh\config "`nHost mini`n  HostName <mini-magicdns>`n  User <macuser>"
+### On the mini (physically, or over an existing session)
+
+1. **Remote Login on:** System Settings -> General -> Sharing -> Remote Login.
+   (Verify from Windows with the SSH test below. Do not assume Tailscale gives
+   you SSH; it does not - this uses macOS's own sshd over the LAN.)
+2. **Authorize this Windows machine.** Append its public key to
+   `~/.ssh/authorized_keys` (mode 600, `~/.ssh` mode 700). The current key is:
+   ```
+   ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIErUsVrfOpTvOAlj95PfadqTKchrxDE/y0uIq6pfdL5v usuario@DESKTOP-FS8CV97
+   ```
+3. **Xcode + iOS platform.** Full Xcode.app (not just Command Line Tools), then
+   the iOS simulator runtime:
+   ```bash
+   sudo xcode-select -s /Applications/Xcode.app
+   sudo xcodebuild -license accept
+   xcodebuild -downloadPlatform iOS        # ~8.5 GB, no sudo needed
+   ```
+4. **Sign in to Xcode once, on the GUI.** Xcode -> Settings -> Accounts -> add
+   the Apple ID that owns team `25B5ZT342A`. The first device build must be run
+   from the Xcode GUI (press Run once) so it can answer the "revoke/create
+   certificate" and keychain prompts. After that, headless signing works.
+5. **Ruby gem for project edits** (only if you will add targets):
+   `gem install --user-install xcodeproj` (already installed).
+
+### On the iPhone (once)
+
+- Settings -> Privacy & Security -> **Developer Mode: On** (reboots the phone).
+- Plug into the mini by USB, tap **Trust**, enter the passcode.
+- First launch of a dev-signed app: Settings -> General -> VPN & Device
+  Management -> trust the developer certificate.
+
+### On Windows (once)
+
+`~/.ssh/config` must contain:
+```
+Host mini
+    HostName xubans-mac-mini.local
+    User xubanceccon
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking accept-new
+    ServerAliveInterval 30
+
+Host mini-lan
+    HostName 192.168.1.134
+    User xubanceccon
+    IdentityFile ~/.ssh/id_ed25519
+```
+`mini` uses the mDNS name (survives DHCP changes); `mini-lan` is the hardcoded
+IP fallback if mDNS is flaky.
+
+**Verify the whole chain in one line:**
+```bash
+ssh mini "sw_vers -productVersion && xcodebuild -version | head -1 && \
+  xcrun simctl list runtimes | grep -i ios && \
+  xcrun devicectl list devices | grep -i iphone"
+```
+You want: a macOS version, an Xcode version, an iOS runtime, and a phone whose
+state is `connected` (not `unavailable`).
+
+## The daily loop
+
+**UI work (fast, no phone needed):**
+```bash
+# edit Swift in apps/iphone/... on Windows, then:
+./apps/iphone/deploy.sh sim
+# Read ./shot.png and judge it against docs/STYLE_GUIDE.md
+```
+Judge against the current design system: **paper `#faf9f4`, ink `#12120f`, one
+yellow `#f0db0c`, Geist for UI, Instrument Serif only for the brand wordmark.**
+(The old style guide's dark navy is obsolete; the app now matches the desktop
+and the website.)
+
+**Real blocking / on-device (needs the phone connected + unlocked):**
+```bash
+./apps/iphone/deploy.sh
+# then, on the phone, start a session and try to open a blocked app
 ```
 
-**Mac mini side** (Xuban does this once, physically or via existing access):
-1. System Settings → General → Sharing → **Remote Login: on** (Tailscale's
-   macOS app doesn't provide an SSH server; use macOS's own).
-2. Append the Windows public key to `~/.ssh/authorized_keys`.
-3. Full Xcode installed (not just CLT), then:
-   `sudo xcode-select -s /Applications/Xcode.app && sudo xcodebuild -license accept && xcodebuild -runFirstLaunch && xcodebuild -downloadPlatform iOS`
-4. Node LTS (for serve-sim) and a clone of the repo:
-   `git clone https://github.com/Yawningface/yawningface.git ~/yawningface`
+## Editing the Xcode project without Xcode
 
-**Verify from Windows:** `ssh mini "sw_vers && xcodebuild -version && xcrun simctl list devices available | head"`
-
-## Loop A - Windows-driven (recommended start; every step versioned)
-
-Claude Code runs here with native file tools; the mini is the build farm.
+The project has four targets: `YawningFace`, `DeviceActivityMonitorExtension`,
+`ShieldConfigurationExtension`, `ShieldActionExtension`. **Never hand-edit
+`project.pbxproj`.** Structural changes (new target, new extension) are done by
+an idempotent Ruby script committed in the repo, e.g.
+`apps/iphone/add-shield-targets.rb`, run on the mini with the `xcodeproj` gem:
 
 ```bash
-# 1. edit Swift files locally in apps/iphone, commit, push
-git push
-
-# 2. build on the mini (simulator builds need no signing)
-ssh mini 'cd ~/yawningface && git pull --ff-only && cd apps/iphone && \
-  xcodebuild -project YawningFace.xcodeproj -scheme YawningFace \
-    -configuration Debug -destination "platform=iOS Simulator,name=iPhone 16" \
-    -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -20'
-
-# 3. install + launch in the (headless) simulator
-ssh mini 'xcrun simctl boot "iPhone 16" 2>/dev/null; \
-  xcrun simctl install booted ~/yawningface/apps/iphone/build/Build/Products/Debug-iphonesimulator/YawningFace.app && \
-  xcrun simctl launch booted <bundle-id>'
-
-# 4. screenshot, pull it back, LOOK at it
-ssh mini 'xcrun simctl io booted screenshot /tmp/yf.png'
-scp mini:/tmp/yf.png ./shot.png     # then Read shot.png (vision)
+tar czf - apps/iphone | ssh mini "tar xzf - -C ~/yawningface"
+ssh mini "export PATH=/opt/homebrew/bin:\$PATH; cd ~/yawningface/apps/iphone && ruby add-shield-targets.rb"
+# then pull the regenerated project back so it is version-controlled:
+scp mini:'~/yawningface/apps/iphone/YawningFace.xcodeproj/project.pbxproj' \
+    apps/iphone/YawningFace.xcodeproj/project.pbxproj
 ```
+Model any new script on that one. Watch two things it gets right that are easy
+to miss: every extension's `Info.plist` needs a real `CFBundleIdentifier`
+(`$(PRODUCT_BUNDLE_IDENTIFIER)`), or the build fails with "embedded binary's
+bundle identifier is not prefixed"; and the extension must be added to the app's
+**Embed Foundation Extensions** copy-files phase, or it silently will not ship.
 
-Then judge the screenshot against `docs/STYLE_GUIDE.md` (bg `#111926`, card
-`#1F2937`, yawn-yellow `#FACC16`, pill buttons, 😴/😎 hero) and the task's
-acceptance criteria; fix; repeat. Logs when something crashes:
-`ssh mini 'xcrun simctl spawn booted log show --last 2m --predicate "process == \"YawningFace\"" | tail -40'`
+> **Gotcha that will bite you:** `tar`-syncing `apps/iphone` from Windows
+> **overwrites `project.pbxproj` on the mini**. If you edited the project on the
+> mini and have not pulled it back, the next `deploy.sh` clobbers your changes.
+> Always pull the project file back into the repo immediately after a project
+> edit.
 
-## Loop B - autonomous on the mini (fast iteration / overnight)
+## Targets and bundle ids (facts)
 
-Install Claude Code on the mini and run it there in `~/yawningface` - native
-Edit/Read tools, no git round-trip per cycle, sessions keep running when the
-Windows box sleeps. Xuban prompts it via Termius (phone) or `ssh mini` and
-watches through serve-sim. Commit/push at every green step so Loop A's clone
-never diverges. Use Loop B for grinding UI polish; Loop A for reviewed,
-structural changes.
+| Thing | Value |
+| --- | --- |
+| App target / bundle id | `YawningFace` / `yawningface.block` |
+| Team (automatic signing) | `25B5ZT342A` (has the Family Controls entitlement) |
+| Extensions | `...block.DeviceActivityMonitorExtension`, `...block.ShieldConfigurationExtension`, `...block.ShieldActionExtension` |
+| App Group (shared storage) | `group.yawningface.block` |
+| No shared schemes | build with `-target YawningFace`, never `-scheme` |
+| Source on the mini | `~/yawningface/apps/iphone` |
 
-## serve-sim - feel the app from Windows
+## Troubleshooting - every error we have actually hit
+
+| Symptom | Cause & fix |
+| --- | --- |
+| `Cannot reach 'mini'` / ssh hangs | Mini asleep or off the LAN. Wake it. Try `ssh mini-lan`. Confirm same WiFi. |
+| `errSecInternalComponent` during CodeSign | The keychain wall. You ran a *signed* build over plain SSH. Use `deploy.sh` (device path), which runs the build in the GUI session via a `.command` file. Never `ssh mini xcodebuild ...` for a device build. |
+| `Revoke certificate ... private key is not in this keychain` | First device signing on this Mac. Must be answered once in the **Xcode GUI**: open the project on the mini (`ssh mini "open ~/yawningface/apps/iphone/YawningFace.xcodeproj"`), press Run, choose "Revoke and Create", allow keychain access ("Always Allow"). Headless works after that. |
+| `PLA Update available ... agree to the latest Program License Agreement` | Apple changed the license. Sign in at developer.apple.com/account and accept the new agreement. No profiles issue until you do. |
+| `No profiles for 'yawningface.block...' were found` | Usually a downstream symptom of the two rows above (PLA not accepted, or cert/keychain). Fix those first, rebuild with `-allowProvisioningUpdates`. |
+| `device was not, or could not be, unlocked` (error 7 / Locked) | **Not a failure.** The build + install SUCCEEDED; the phone was locked at launch. Unlock it and open the app, or re-run. `deploy.sh` now reports this plainly. |
+| iPhone shows `unavailable` in `devicectl list devices` | Locked, unplugged, or trust expired. Unlock, re-seat USB, re-tap Trust. |
+| `BUILD FAILED ... iOS 26.5 Platform Not Installed` | The simulator runtime is still downloading, or CoreSimulator is stale. Wait for `xcodebuild -downloadPlatform iOS`; if it says Ready but `simctl list runtimes` is empty, `killall -9 com.apple.CoreSimulator.CoreSimulatorService`. |
+| `Invalid runtime` when creating a sim | Pass the full runtime id, e.g. `com.apple.CoreSimulator.SimRuntime.iOS-26-5`, discovered from `xcrun simctl list runtimes`. |
+| Homebrew tool "command not found" over SSH | Non-interactive SSH has a minimal PATH. Prefix: `export PATH=/opt/homebrew/bin:$PATH`. (`xcodebuild`/`xcrun`/`simctl` are in `/usr/bin` and always work.) |
+| `~` becomes a `C:\...` path on the mini | Local MSYS bash expands `~` before sending. In remote command strings use a single-quoted `$HOME` (expands on the Mac), not `~`. This bit `deploy.sh` once. |
+
+## Disk - the recurring hazard
+
+Xcode + one iOS runtime is ~35 GB, and the mini also self-hosts Docker
+(boringtube-2, xupanel, blogbot, portainer) whose disk image **balloons over
+time** back toward 24 GB. Free space drifts down to a few GB and then builds
+fail. `deploy.sh` warns under 3 GB. To reclaim, in order of safety:
 
 ```bash
-ssh mini 'cd ~ && (xcrun simctl boot "iPhone 16" 2>/dev/null); npx serve-sim'   # leave running
-# separate Windows terminal - tunnel, then browse http://localhost:3200
-ssh -L 3200:localhost:3200 mini
+ssh mini "df -h /"                                   # check first
+# safe, re-downloadable caches:
+ssh mini "rm -rf ~/Library/Developer/Xcode/DerivedData ~/Library/Caches/Homebrew"
+# Docker without touching the running services or boringtube's media volume:
+ssh mini "docker image prune -af && docker builder prune -af"
+ssh mini "docker run --rm --privileged --pid=host docker/desktop-reclaim-space"  # shrinks the sparse image
 ```
-60 FPS MJPEG stream + click/gesture control in the browser. Evan Bacon's repo
-(github.com/EvanBacon/serve-sim) also ships an **agent skill** (`skills/serve-sim`)
-that teaches agents to drive gestures/taps/typing - install it on whichever
-machine runs the agent when interaction-testing is needed.
+**Never** delete the `boringtube-2_media-data` volume or run `docker system
+prune --volumes` blindly - that is the user's data and it is not backed up.
 
-## On-device (the Screen Time 10%)
+## Facts (confirmed live, 2026-07)
 
-Physical iPhone plugged into the mini via USB, trusted, Developer Mode on:
-```bash
-ssh mini 'xcrun devicectl list devices'
-ssh mini 'xcrun devicectl device install app --device <udid> <path-to-.app>'
-```
-Device builds need real signing (Xuban's Apple ID team in Xcode on the mini);
-distribution/TestFlight additionally needs the **Family Controls entitlement**
- -  the request form is the project's longest lead-time item ([[ios-screentime]]).
+| Fact | Value |
+| --- | --- |
+| Reach | LAN over mDNS. `ssh mini` -> `xubans-mac-mini.local` -> `192.168.1.134`. No Tailscale. |
+| macOS user | `xubanceccon` |
+| macOS / chip | 26.3.x, Apple silicon (arm64) |
+| Xcode | 26.6, at `/Applications/Xcode.app`, xcode-select'ed |
+| iOS runtime | iOS 26.5 Simulator |
+| iPhone | iPhone 15, UDID `BC9CD673-B180-5D20-A854-CDF678FD2458` (deploy.sh discovers it) |
+| sudo | needs a password; nothing root can be automated over SSH |
+| Verified loop | `deploy.sh sim` builds + screenshots; `deploy.sh` builds + signs + installs in ~30 s (launch needs the phone unlocked). |
 
-## Recommended early improvements
+## Optional: serve-sim (feel the sim from Windows)
 
-1. **XcodeGen**: replace the checked-in `.xcodeproj` with a text-native
-   `project.yml` (levelsio's trick) - agent-editable, merge-friendly,
-   regenerate with `xcodegen generate`. Do it before heavy UI iteration.
-2. First missions once the loop is live: the `selectedDays` bug, contract
-   adoption, onboarding polish - all in `apps/iphone/PORT_NOTES.md`.
-
-## Gotchas
-
-- Non-interactive SSH has a minimal PATH; `xcodebuild`/`xcrun` live in
-  `/usr/bin` and work, but anything installed via Homebrew may need
-  `/opt/homebrew/bin/` prefixed.
-- If `simctl` errors about developer dir: `sudo xcode-select -s /Applications/Xcode.app` on the mini.
-- Simulator device names drift with Xcode versions - always discover with
-  `xcrun simctl list devices available` instead of assuming.
-- First boot of a simulator is slow (~1 min); keep it booted between cycles.
-- `git pull --ff-only` on the mini fails if Loop B committed without pushing  - 
-  resolve on the mini, never force-push from Windows.
-- Keep secrets off the mini clone; it needs no `.env` (the coach runs where
-  Claude runs, not in the iPhone app).
+Not currently set up or verified here. If you want live interaction rather than
+one-shot screenshots: `ssh mini "npx serve-sim"` streams the booted simulator;
+tunnel with `ssh -L 3200:localhost:3200 mini` and open `http://localhost:3200`.
+Evan Bacon's repo ships an agent skill for driving taps. Treat as experimental
+until proven in this setup - the screenshot loop above is what is known to work.
