@@ -5,20 +5,18 @@
  * Redirecting before Chrome performs DNS is what replaces ERR_NAME_NOT_RESOLVED
  * with yawningface's own blocked page.
  */
-const DEFAULT_SUBDOMAIN_EXCEPTIONS: Record<string, string[]> = {
-  "youtube.com": ["music.youtube.com"],
-};
-
-export async function applyRules(domains: string[]): Promise<void> {
+export async function applyRules(
+  domains: string[],
+  excludedDomains: string[] = [],
+): Promise<void> {
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   const removeRuleIds = existing.map((rule) => rule.id);
-  const explicitlyBlocked = new Set(domains);
 
   const addRules: chrome.declarativeNetRequest.Rule[] = domains.map(
     (domain, index) => {
-      const excludedRequestDomains = (
-        DEFAULT_SUBDOMAIN_EXCEPTIONS[domain] ?? []
-      ).filter((exception) => !explicitlyBlocked.has(exception));
+      const excludedRequestDomains = excludedDomains.filter(
+        (exception) => exception.endsWith(`.${domain}`),
+      );
 
       return {
         id: index + 1,
@@ -32,7 +30,7 @@ export async function applyRules(domains: string[]): Promise<void> {
           },
         },
         condition: {
-          regexFilter: `^https?://([a-z0-9-]+\\.)*${domain.replace(/\./g, "\\.")}(/|$|\\?)`,
+          regexFilter: `^https?://([a-z0-9-]+\\.)*${domain.replace(/\./g, "\\.")}(:[0-9]+)?(/.*|\\?.*|$)`,
           ...(excludedRequestDomains.length ? { excludedRequestDomains } : {}),
           resourceTypes: [
             "main_frame" as chrome.declarativeNetRequest.ResourceType,

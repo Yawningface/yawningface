@@ -100,6 +100,11 @@ pub const DEFAULT_SESSION_DOMAINS: &[&str] = &[
     "twitch.tv",
 ];
 
+/// Narrow exceptions to the one-click session defaults. These are policy, so
+/// desktop publishes them to browser companions rather than each slave
+/// inventing its own interpretation of a parent domain.
+pub const DEFAULT_SESSION_DOMAIN_EXCLUSIONS: &[&str] = &["music.youtube.com"];
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LocalSession {

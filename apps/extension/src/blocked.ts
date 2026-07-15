@@ -16,6 +16,7 @@ async function render(): Promise<void> {
   applyDesktopAppearance(state);
   const attempts =
     (stored.attempts as Record<string, number> | undefined) ?? {};
+  let blockingEnded = false;
 
   if (domain) $("domain").textContent = domain;
   const attemptResponse = domain
@@ -47,14 +48,19 @@ async function render(): Promise<void> {
   );
 
   if (attemptResponse.ok === false) {
+    blockingEnded = true;
     $("block-reason").textContent = "by a session that has just ended";
-    $("until").textContent =
-      "Refresh the original tab. Desktop is no longer blocking this website.";
+    $("until").textContent = "Desktop is no longer blocking this website.";
+    $("close-tab").textContent = `Continue to ${domain}`;
     $("unblock").setAttribute("hidden", "");
   }
   $("unblocks").textContent = String(state?.unblocksToday ?? 0);
 
   $("close-tab").addEventListener("click", async () => {
+    if (blockingEnded && domain) {
+      location.href = `https://${domain}`;
+      return;
+    }
     const tab = await chrome.tabs.getCurrent();
     if (tab?.id !== undefined) {
       await chrome.tabs.remove(tab.id);

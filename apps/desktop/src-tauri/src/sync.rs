@@ -214,7 +214,25 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         }
         session.clone()
     };
+    let mut browser_excluded_domains = std::collections::BTreeSet::new();
     if session.is_running() {
+        let explicit_session_domains: std::collections::BTreeSet<String> = session
+            .domains
+            .iter()
+            .map(|domain| schedule::normalize_domain(domain))
+            .filter(|domain| !domain.is_empty())
+            .collect();
+        let youtube_was_explicit = block_set.domains.contains("youtube.com")
+            || block_set.domains.contains("music.youtube.com")
+            || explicit_session_domains.contains("youtube.com")
+            || explicit_session_domains.contains("music.youtube.com");
+        if !youtube_was_explicit {
+            browser_excluded_domains.extend(
+                crate::settings::DEFAULT_SESSION_DOMAIN_EXCLUSIONS
+                    .iter()
+                    .map(|domain| domain.to_string()),
+            );
+        }
         block_set
             .active_lists
             .push("Working session".to_string());
@@ -247,6 +265,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     crate::native_messaging::write_bridge_state(
         app,
         &block_set.domains,
+        &browser_excluded_domains,
         &block_set.active_lists,
         if session.is_running() {
             session.until.clone()

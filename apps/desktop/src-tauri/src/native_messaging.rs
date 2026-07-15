@@ -33,6 +33,7 @@ pub const UNBLOCK_MINUTES: u32 = 10;
 pub struct BrowserBridgeState {
     pub available: bool,
     pub domains: Vec<String>,
+    pub excluded_domains: Vec<String>,
     pub reasons: Vec<String>,
     pub session_until: Option<String>,
     pub focused_today_seconds: u64,
@@ -365,6 +366,7 @@ fn read_bridge_state() -> BrowserBridgeState {
 pub fn write_bridge_state(
     app: &AppHandle,
     domains: &BTreeSet<String>,
+    excluded_domains: &BTreeSet<String>,
     reasons: &[String],
     session_until: Option<String>,
 ) -> Result<(), String> {
@@ -381,6 +383,7 @@ pub fn write_bridge_state(
     let state = BrowserBridgeState {
         available: true,
         domains: domains.iter().cloned().collect(),
+        excluded_domains: excluded_domains.iter().cloned().collect(),
         reasons: reasons.to_vec(),
         session_until,
         focused_today_seconds,

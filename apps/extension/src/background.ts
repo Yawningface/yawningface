@@ -46,7 +46,7 @@ async function applyDesktopState(
 
   const exemptions = new Set((await activeUnblocks()).map((event) => event.domain));
   const domains = (state?.domains ?? []).filter((domain) => !exemptions.has(domain));
-  await applyRules(domains);
+  await applyRules(domains, state?.excludedDomains ?? []);
   await paintIcon(domains.length > 0, state?.reasons ?? [], connected);
   await chrome.storage.local.remove("desktopBridgeError");
 }

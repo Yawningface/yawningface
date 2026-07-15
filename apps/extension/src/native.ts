@@ -17,6 +17,7 @@ interface DesktopEvent {
 export interface DesktopState {
   available: boolean;
   domains: string[];
+  excludedDomains?: string[];
   reasons: string[];
   sessionUntil: string | null;
   focusedTodaySeconds: number;

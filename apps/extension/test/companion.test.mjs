@@ -34,9 +34,10 @@ test("desktop state drives rules and exceptions", async () => {
   assert.doesNotMatch(background, /startSession|evaluate\(/);
   assert.match(rules, /declarativeNetRequest\.updateDynamicRules/);
   assert.match(rules, /blocked\.html/);
-  assert.match(rules, /"youtube\.com": \["music\.youtube\.com"\]/);
-  assert.match(rules, /!explicitlyBlocked\.has\(exception\)/);
+  assert.match(background, /state\?\.excludedDomains \?\? \[\]/);
+  assert.match(rules, /excludedDomains: string\[\]/);
   assert.match(rules, /excludedRequestDomains/);
+  assert.doesNotMatch(rules, /music\.youtube\.com/);
   assert.match(native, /type: "get_state"/);
   assert.match(native, /type: "unblock_request"/);
   assert.match(native, /appearance\?: "system" \| "light" \| "dark"/);
@@ -56,5 +57,6 @@ test("blocked page uses Goya and offers explicit working exits", async () => {
   assert.match(css, /url\("art\/goya\.webp"\)/);
   assert.match(css, /\.unblock-entry[\s\S]*border: 1px solid/);
   assert.match(script, /chrome\.tabs\.remove\(tab\.id\)/);
+  assert.match(script, /Continue to \$\{domain\}/);
   assert.doesNotMatch(script, /about:blank/);
 });
