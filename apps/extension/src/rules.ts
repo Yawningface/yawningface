@@ -26,7 +26,7 @@ export async function applyRules(
           redirect: {
             regexSubstitution:
               chrome.runtime.getURL("blocked.html") +
-              `?d=${encodeURIComponent(domain)}&h=\\1`,
+              `?d=${encodeURIComponent(domain)}&h=\\1#\\0`,
           },
         },
         condition: {

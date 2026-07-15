@@ -18,10 +18,28 @@ function describeBlock(reasons: string[]): {
   return { text: "by the desktop app", source: "desktop" };
 }
 
+function originalBlockedUrl(raw: string, policyDomain: string): string | null {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    const belongsToPolicy =
+      host === policyDomain || host.endsWith(`.${policyDomain}`);
+    if (!belongsToPolicy || !["http:", "https:"].includes(url.protocol)) {
+      return null;
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 async function render(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const domain = params.get("d") ?? "";
   const requestedHost = params.get("h") ?? domain;
+  const returnUrl =
+    originalBlockedUrl(location.hash.slice(1), domain) ??
+    `https://${requestedHost}`;
   const stored = await chrome.storage.local.get("desktopState");
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
   applyDesktopAppearance(state);
@@ -61,7 +79,7 @@ async function render(): Promise<void> {
 
   $("close-tab").addEventListener("click", async () => {
     if (blockingEnded && requestedHost) {
-      location.href = `https://${requestedHost}`;
+      location.href = returnUrl;
       return;
     }
     const tab = await chrome.tabs.getCurrent();
@@ -118,7 +136,7 @@ async function render(): Promise<void> {
     // Desktop waits for its privileged hosts helper before acknowledging the
     // exception; this short beat lets Chrome discard the old DNS failure too.
     setTimeout(() => {
-      location.href = `https://${requestedHost}`;
+      location.href = returnUrl;
     }, 1_200);
   });
 }
