@@ -2,50 +2,52 @@ import { applyDesktopAppearance, type DesktopState } from "./native";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-function humanMinutes(minutes: number): string {
-  if (minutes < 60) return `${minutes} m`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours} h ${rest} m` : `${hours} h`;
+function describeBlock(reasons: string[]): {
+  text: string;
+  source: "schedule" | "working" | "desktop";
+} {
+  const schedule = reasons.find(
+    (reason) => reason.trim().toLowerCase() !== "working session",
+  );
+  if (schedule) {
+    return { text: `by blocking schedule "${schedule}"`, source: "schedule" };
+  }
+  if (reasons.some((reason) => reason.trim().toLowerCase() === "working session")) {
+    return { text: "by your working session", source: "working" };
+  }
+  return { text: "by the desktop app", source: "desktop" };
 }
 
 async function render(): Promise<void> {
   const domain = new URLSearchParams(location.search).get("d") ?? "";
-  const stored = await chrome.storage.local.get(["desktopState", "attempts"]);
+  const stored = await chrome.storage.local.get("desktopState");
   const state = (stored.desktopState as DesktopState | undefined) ?? null;
   applyDesktopAppearance(state);
-  const attempts =
-    (stored.attempts as Record<string, number> | undefined) ?? {};
   let blockingEnded = false;
 
   if (domain) $("domain").textContent = domain;
   const attemptResponse = domain
     ? ((await chrome.runtime.sendMessage({ type: "yf:attempt", domain })) as {
         ok?: boolean;
-        attempts?: number;
       })
     : {};
 
-  $("block-reason").textContent = state?.reasons.length
-    ? `by ${state.reasons.join(", ")}`
-    : "by the desktop app";
+  const description = describeBlock(state?.reasons ?? []);
+  $("block-reason").textContent = description.text;
 
-  if (state?.sessionUntil) {
+  if (description.source === "schedule") {
+    $("until").textContent = "This schedule is active right now.";
+  } else if (description.source === "working" && state?.sessionUntil) {
     const until = new Date(state.sessionUntil).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     });
-    $("until").textContent = `The session ends at ${until}. It will still be here.`;
+    $("until").textContent = `Your working session ends at ${until}.`;
+  } else if (description.source === "working") {
+    $("until").textContent = "Your working session is active right now.";
   } else {
     $("until").textContent = "It will still be here later.";
   }
-
-  $("focused").textContent = humanMinutes(
-    Math.round((state?.focusedTodaySeconds ?? 0) / 60),
-  );
-  $("attempts").textContent = String(
-    attemptResponse.attempts ?? attempts[domain] ?? 0,
-  );
 
   if (attemptResponse.ok === false) {
     blockingEnded = true;
@@ -54,7 +56,6 @@ async function render(): Promise<void> {
     $("close-tab").textContent = `Continue to ${domain}`;
     $("unblock").setAttribute("hidden", "");
   }
-  $("unblocks").textContent = String(state?.unblocksToday ?? 0);
 
   $("close-tab").addEventListener("click", async () => {
     if (blockingEnded && domain) {
@@ -111,7 +112,6 @@ async function render(): Promise<void> {
     const note = $("unblocked-note");
     note.hidden = false;
     note.textContent = `Letting ${domain} through for ${response.minutes} minutes. Your reason is in Insights.`;
-    $("unblocks").textContent = String((state?.unblocksToday ?? 0) + 1);
 
     // Desktop waits for its privileged hosts helper before acknowledging the
     // exception; this short beat lets Chrome discard the old DNS failure too.

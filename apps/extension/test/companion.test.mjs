@@ -54,8 +54,12 @@ test("blocked page uses Goya and offers explicit working exits", async () => {
   assert.match(html, /class="blocked-exit"/);
   assert.match(html, /Close this tab/);
   assert.match(html, /Unblock with a reason/);
+  assert.doesNotMatch(html, /focused today|times you came here|unblocks today/);
   assert.match(css, /url\("art\/goya\.webp"\)/);
-  assert.match(css, /\.unblock-entry[\s\S]*border: 1px solid/);
+  assert.match(css, /\.unblock-entry[\s\S]*background: transparent/);
+  assert.match(css, /\.unblock-entry[\s\S]*text-decoration: underline/);
+  assert.match(script, /by blocking schedule \"\$\{schedule\}\"/);
+  assert.match(script, /by your working session/);
   assert.match(script, /chrome\.tabs\.remove\(tab\.id\)/);
   assert.match(script, /Continue to \$\{domain\}/);
   assert.doesNotMatch(script, /about:blank/);

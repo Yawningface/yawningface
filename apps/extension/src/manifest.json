@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "yawningface",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Browser companion for yawningface desktop: custom block pages, Insights events, and reason-gated exceptions.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk01XsNohVyZs+K3k36R+KOEWgadNVsCzkHvQPrWfnktALIyhhSkvkYf2y77ESFU3gPfLRM1k2LZ2kgdSVGUs5qWiS3VfBjt0ca5JxFLY/k9Joi4jyto0uhrmZX8lTNwP7WKjytkKOi7wKzYs1XcXSssrjLzy/DGvZZAmL7iHGELK3RNq93GHvijaujNzkrkLqdcpmIBR/RXfS598i1JGExtx7wNHiBGn6eA2qLHjHXpglnpOSbwPWKt1ryJ/ewcJX3P2+cxXD3ZamxXWFM8ACz/yUDSrVUId4PSQt7yGlDxyKIvdsgYY7NRVteKMD4LBeXuQw4NNqRLoAyM/bJXwEwIDAQAB",
