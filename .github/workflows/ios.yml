@@ -1,0 +1,41 @@
+name: iOS
+
+# Builds the iPhone app (apps/iphone) for the simulator on every push and PR,
+# so a Swift regression in the phone app cannot ship unnoticed. No signing, no
+# device: a simulator build is enough to catch what broke tonight (a schedule
+# ignoring weekdays, an extension that stopped compiling, a shield that shields
+# nothing). It does NOT verify blocking - Screen Time only runs on real
+# hardware - but it verifies the whole thing still builds.
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/iphone/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['apps/iphone/**', '.github/workflows/ios.yml']
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest Xcode on the runner
+        run: |
+          newest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "${newest:-/Applications/Xcode.app}"
+
+      - name: Show toolchain
+        run: xcodebuild -version && xcrun simctl list runtimes | grep -i ios | head
+
+      - name: Build (simulator, unsigned)
+        working-directory: apps/iphone
+        run: |
+          xcodebuild \
+            -project YawningFace.xcodeproj \
+            -target YawningFace \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build.log | grep -E 'error:|warning:|BUILD SUCCEEDED|BUILD FAILED' || true
+          grep -q 'BUILD SUCCEEDED' build.log

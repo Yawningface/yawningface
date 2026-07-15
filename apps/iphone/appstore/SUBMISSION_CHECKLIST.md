@@ -23,10 +23,21 @@
 ### App ID & Provisioning
 - [ ] Create App ID with your bundle identifier (if not already done)
 - [ ] Enable App Groups capability
-- [ ] Enable Family Controls capability
+- [ ] Enable Family Controls capability (development)
+- [ ] **Request the distribution Family Controls entitlement from Apple** (see below)
 - [ ] Create provisioning profile for distribution
 
-> **Note**: Family Controls is available to all developers since iOS 16. No special approval needed - if it works during development, it will work in production.
+> **This is the longest-lead-time item. Start it first.** Family Controls works
+> in *development* on any account, so it is tempting to assume it just works in
+> production. It does not. **Distributing** an app that uses FamilyControls /
+> DeviceActivity / ManagedSettings (via TestFlight beyond internal testers, or
+> the App Store) requires a **special entitlement you must request from Apple**,
+> and it applies to the app **and every Screen Time extension** (here: the
+> DeviceActivity monitor, the shield configuration, and the shield action).
+> Request it at
+> <https://developer.apple.com/contact/request/family-controls-distribution>.
+> Approval can take days to weeks. Build nothing that assumes it is granted.
+> See `.claude/skills/ios-screentime`.
 
 ---
 

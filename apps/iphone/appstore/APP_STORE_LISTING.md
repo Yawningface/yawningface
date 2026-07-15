@@ -60,7 +60,7 @@ YawningFace is the first open-source app blocker with scheduled blocking. Unlike
 
 **REQUIREMENTS**
 
-• iOS 16 or later
+• iOS 17 or later
 • Screen Time permissions
 
 ---

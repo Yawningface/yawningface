@@ -28,7 +28,7 @@ Unlike other app blockers, YawningFace is:
 
 ## Requirements
 
-- iOS 16+
+- iOS 17+
 - Physical iPhone (Screen Time APIs don't work in Simulator)
 
 ## Installation

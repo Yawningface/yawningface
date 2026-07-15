@@ -186,7 +186,16 @@ struct ProfileView: View {
                         Divider().background(backgroundColor)
                         toggleRow(icon: "lock.shield", title: "Strict Mode", isOn: Binding(
                             get: { BlockerModel.strictMode },
-                            set: { BlockerModel.strictMode = $0 }
+                            set: { newValue in
+                                // Strict Mode you can leave any time is not strict.
+                                // It can always be turned ON, but it cannot be
+                                // switched OFF while a session is actually running.
+                                if newValue == false, SessionManager.isRunning {
+                                    Haptics.medium()
+                                    return
+                                }
+                                BlockerModel.strictMode = newValue
+                            }
                         ))
                     }
                     .background(cardColor)

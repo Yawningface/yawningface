@@ -31,9 +31,13 @@ struct MainTabView: View {
     }
 
     private func checkAuthorization() {
-        let systemApproved = AuthorizationCenter.shared.authorizationStatus == .approved
-        let storedApproved = UserDefaults.standard.bool(forKey: "authorized")
-        isAuthorized = systemApproved || storedApproved
+        // Trust only the live system status. OR-ing a cached "authorized" flag
+        // meant the app kept claiming permission after the user revoked Screen
+        // Time access in Settings, hiding the banner while blocking silently
+        // did nothing.
+        let approved = AuthorizationCenter.shared.authorizationStatus == .approved
+        isAuthorized = approved
+        UserDefaults.standard.set(approved, forKey: "authorized")
     }
 }
 

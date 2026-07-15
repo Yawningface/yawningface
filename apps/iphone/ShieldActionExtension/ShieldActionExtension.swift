@@ -11,9 +11,10 @@ import Foundation
 
 class ShieldActionExtension: ShieldActionDelegate {
 
-    private let store = ManagedSettingsStore()
     private let center = DeviceActivityCenter()
-    private let group = UserDefaults(suiteName: "group.yawningface.block")
+    private let group = Enforcement.group
+
+    private var strictMode: Bool { group?.bool(forKey: "strictMode") ?? false }
 
     private func handle(_ action: ShieldAction, completionHandler: @escaping (ShieldActionResponse) -> Void) {
         switch action {
@@ -22,6 +23,12 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
 
         case .secondaryButtonPressed:
+            // Strict Mode means no way out; the button should not even be shown,
+            // but refuse here too so it can never become a bypass.
+            if strictMode {
+                completionHandler(.close)
+                return
+            }
             unblock()
             completionHandler(.none)
 
@@ -31,8 +38,10 @@ class ShieldActionExtension: ShieldActionDelegate {
     }
 
     private func unblock() {
-        store.shield.applications = nil
-        center.stopMonitoring([DeviceActivityName("workingSession")])
+        // Clear ONLY the working session's store (all token types) and stop its
+        // interval. Scheduled blocks in their own stores are untouched.
+        ManagedSettingsStore(named: .session).clearAllSettings()
+        center.stopMonitoring([DeviceActivityName(Enforcement.sessionActivityRawValue)])
 
         group?.set(false, forKey: "sessionActive")
         group?.removeObject(forKey: "sessionUntil")

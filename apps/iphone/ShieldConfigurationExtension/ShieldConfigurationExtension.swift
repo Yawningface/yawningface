@@ -16,8 +16,20 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     private let ink = UIColor(red: 0.07, green: 0.07, blue: 0.059, alpha: 1)
     private let yellow = UIColor(red: 0.941, green: 0.859, blue: 0.047, alpha: 1)
 
+    private var strictMode: Bool { group?.bool(forKey: "strictMode") ?? false }
+
     private func configuration() -> ShieldConfiguration {
-        ShieldConfiguration(
+        // In Strict Mode there is deliberately no way out, so the "Unblock
+        // anyway" button is not even offered (the action extension refuses it
+        // too, belt and braces).
+        let secondary = strictMode
+            ? nil
+            : ShieldConfiguration.Label(
+                text: "Unblock anyway",
+                color: ink.withAlphaComponent(0.55)
+            )
+
+        return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialLight,
             backgroundColor: paper,
             icon: UIImage(named: "ShieldIcon"),
@@ -28,10 +40,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             subtitle: ShieldConfiguration.Label(text: subtitle(), color: ink.withAlphaComponent(0.7)),
             primaryButtonLabel: ShieldConfiguration.Label(text: "Keep me out", color: yellow),
             primaryButtonBackgroundColor: ink,
-            secondaryButtonLabel: ShieldConfiguration.Label(
-                text: "Unblock anyway",
-                color: ink.withAlphaComponent(0.55)
-            )
+            secondaryButtonLabel: secondary
         )
     }
 

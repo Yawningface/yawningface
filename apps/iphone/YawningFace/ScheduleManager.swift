@@ -1,5 +1,6 @@
 import Foundation
 import DeviceActivity
+import ManagedSettings
 
 extension DeviceActivityName {
     // 3 periods x 2 (for midnight splits) = 6 schedule slots
@@ -19,8 +20,18 @@ struct ScheduleManager {
 
     private static let center = DeviceActivityCenter()
 
+    /// Every schedule slot, so we can stop them WITHOUT touching the working
+    /// session's own activity (`.session`). Stopping globally used to cancel a
+    /// running session by accident.
+    static var scheduleActivityNames: [DeviceActivityName] {
+        (0..<3).flatMap { i in
+            [DeviceActivityName.forPeriod(i, part: "a"),
+             DeviceActivityName.forPeriod(i, part: "b")]
+        }
+    }
+
     static func startSchedules() {
-        center.stopMonitoring()
+        center.stopMonitoring(scheduleActivityNames)
 
         for (index, period) in BlockerModel.timePeriods.enumerated() {
             guard index < 3 else { break } // Max 3 periods
@@ -55,6 +66,11 @@ struct ScheduleManager {
     }
 
     static func stopSchedules() {
-        center.stopMonitoring()
+        center.stopMonitoring(scheduleActivityNames)
+        // Clear each period's store so nothing lingers shielded after the user
+        // turns schedules off.
+        for i in 0..<3 {
+            ManagedSettingsStore(named: .schedule(i)).clearAllSettings()
+        }
     }
 }

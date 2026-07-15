@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03D83F5AE1AEFF3CF668361A /* Enforcement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F42AB3C15973B5B6C4926567 /* Enforcement.swift */; };
 		23F6B4DD2F0D5CFF00280460 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23F6B4DC2F0D5CFF00280460 /* DeviceActivity.framework */; };
 		23F6B4E52F0D5CFF00280460 /* DeviceActivityMonitorExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 23F6B4DA2F0D5CFF00280460 /* DeviceActivityMonitorExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2A7A2AE2D26B9CFA0BE1453C /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54D3777C1740B23A8F3E3939 /* ShieldActionExtension.swift */; };
@@ -14,6 +15,7 @@
 		43BDE6E66B170F0C3968CB1E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 952CC7F07A437C6678E474C1 /* Foundation.framework */; };
 		4BD0393BFA09385F952046F1 /* ShieldConfigurationExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3387B49D0C7BCCD6BAEB349 /* ShieldConfigurationExtension.swift */; };
 		5F483D5724C8184DC42C97D9 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 64FB8EA651081EFD03DD80A6 /* ManagedSettings.framework */; };
+		93183DBA5311EFCE9EB0A402 /* Enforcement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F42AB3C15973B5B6C4926567 /* Enforcement.swift */; };
 		B72C22F31A9CAF4719C23016 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 952CC7F07A437C6678E474C1 /* Foundation.framework */; };
 		BC6A8E2D27166ED7B9579E94 /* ShieldConfigurationExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F01B507F10F81FD57269EF9B /* ShieldConfigurationExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CF42D282B58A068EDFE761E5 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB49056CAF9AA47CEDA63196 /* DeviceActivity.framework */; };
@@ -74,6 +76,7 @@
 		D8E4CA406BCA805D6DC26EF7 /* ShieldActionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShieldActionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F01B507F10F81FD57269EF9B /* ShieldConfigurationExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShieldConfigurationExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F3387B49D0C7BCCD6BAEB349 /* ShieldConfigurationExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShieldConfigurationExtension.swift; sourceTree = "<group>"; };
+		F42AB3C15973B5B6C4926567 /* Enforcement.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Enforcement.swift; path = YawningFace/Enforcement.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -161,6 +164,7 @@
 				23F6B4C42F0D59AD00280460 /* Products */,
 				8AE4BB602A253A3C4D7473CE /* ShieldConfigurationExtension */,
 				20E7CE0A04CCF32824F10B2E /* ShieldActionExtension */,
+				92FB124071A91D1A21E773AF /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -203,6 +207,14 @@
 			);
 			name = ShieldConfigurationExtension;
 			path = ShieldConfigurationExtension;
+			sourceTree = SOURCE_ROOT;
+		};
+		92FB124071A91D1A21E773AF /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				F42AB3C15973B5B6C4926567 /* Enforcement.swift */,
+			);
+			name = Shared;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -369,6 +381,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				03D83F5AE1AEFF3CF668361A /* Enforcement.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +398,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A7A2AE2D26B9CFA0BE1453C /* ShieldActionExtension.swift in Sources */,
+				93183DBA5311EFCE9EB0A402 /* Enforcement.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -483,7 +497,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -541,7 +555,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
