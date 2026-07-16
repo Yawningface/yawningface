@@ -35,6 +35,12 @@ pub fn spool_path() -> PathBuf {
     data_dir().join("spool_domains.txt")
 }
 
+/// User-writable Tough Mode lock *request*, consumed (and deleted) by the
+/// privileged applier. See `blocking::lock`.
+pub fn lock_request_path() -> PathBuf {
+    data_dir().join("lock_request.txt")
+}
+
 /// App data dir that works both in the GUI app and in the headless applier.
 pub fn data_dir() -> PathBuf {
     #[cfg(target_os = "windows")]

@@ -252,6 +252,48 @@ async fn save_local_config(
     sync_now(app).await
 }
 
+/// Tough Mode (macOS): asks the root helper to lock the current block set
+/// (plus the default session list) at the hosts level for `minutes`.
+/// Deliberately, there is no command to end it early - not here, not in the
+/// helper. Quitting or uninstalling the app does not lift the lock.
+#[tauri::command]
+async fn start_tough_mode(app: AppHandle, minutes: u64) -> Result<EngineStatus, String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, minutes);
+        Err("Tough Mode is only available on macOS for now.".into())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if !blocking::platform::helper_installed() {
+            return Err("Enable website blocking first (the one-time setup).".into());
+        }
+        let minutes = minutes.clamp(1, 7 * 24 * 60);
+        let domains = {
+            let state = app.state::<AppState>();
+            let mut d = state.last_domains.lock().unwrap().clone().unwrap_or_default();
+            for dd in crate::settings::DEFAULT_SESSION_DOMAINS {
+                d.insert(dd.to_string());
+            }
+            d
+        };
+        let until = chrono::Utc::now().timestamp() + minutes as i64 * 60;
+        blocking::lock::write_lock_request(until, &domains)?;
+        blocking::platform::trigger_apply();
+        {
+            let state = app.state::<AppState>();
+            sync::push_event(
+                &state,
+                "tough_mode_started",
+                json!({ "minutes": minutes, "domains": domains.len() }),
+            );
+        }
+        // Give the root helper a moment to consume the request, then refresh.
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        sync_now(app).await
+    }
+}
+
 #[tauri::command]
 async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
     // Blocking admin-prompt call; run it off the async runtime.
@@ -446,6 +488,7 @@ pub fn run() {
             save_local_config,
             get_stats,
             get_browser_extensions,
+            start_tough_mode,
             setup_hosts_helper
         ])
         .setup(|app| {

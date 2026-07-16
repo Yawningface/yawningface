@@ -73,6 +73,8 @@ export interface EngineStatus {
   sessionActive: boolean;
   sessionStartedAt: string | null;
   sessionUntil: string | null;
+  toughLockActive: boolean;
+  toughLockUntil: string | null;
 }
 
 export interface TimePeriod {

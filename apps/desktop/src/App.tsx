@@ -305,6 +305,116 @@ function SessionCard({
   );
 }
 
+const TOUGH_DURATIONS: { label: string; minutes: number }[] = [
+  { label: "1 h", minutes: 60 },
+  { label: "2 h", minutes: 120 },
+  { label: "4 h", minutes: 240 },
+  { label: "8 h", minutes: 480 },
+];
+
+/** Tough Mode: a root-enforced lock with no early exit. macOS only. */
+function ToughModeCard({
+  status,
+  onChanged,
+}: {
+  status: EngineStatus;
+  onChanged: () => void;
+}) {
+  const [minutes, setMinutes] = useState(60);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!IS_MAC) return null;
+
+  if (status.toughLockActive) {
+    return (
+      <section className="card tough on">
+        <div className="tough-title">TOUGH MODE</div>
+        <p className="muted">
+          Locked until{" "}
+          {status.toughLockUntil
+            ? new Date(status.toughLockUntil).toLocaleString([], {
+                weekday: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "the timer ends"}
+          . There is no way to stop it early — not from here, not by quitting,
+          not by deleting the app. It ends when the timer ends.
+        </p>
+      </section>
+    );
+  }
+
+  const arm = async () => {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke("start_tough_mode", { minutes });
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  };
+
+  const label =
+    TOUGH_DURATIONS.find((d) => d.minutes === minutes)?.label ??
+    `${minutes} min`;
+
+  return (
+    <section className="card tough">
+      <b>Tough Mode</b>
+      <p className="muted">
+        Lock the block at the system level. No pause, no unlock, no uninstall
+        trick — the block outlives the app until the timer runs out.
+      </p>
+      <div className="tough-durations">
+        {TOUGH_DURATIONS.map((d) => (
+          <button
+            key={d.label}
+            className={`tough-chip ${minutes === d.minutes ? "selected" : ""}`}
+            onClick={() => setMinutes(d.minutes)}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <div className="actions">
+        <button
+          className={confirming ? "tough-arm" : "ghost pill"}
+          disabled={busy || !status.hostsHelperInstalled}
+          onClick={arm}
+        >
+          {busy
+            ? "Locking…"
+            : confirming
+              ? `Yes, lock me out for ${label} — no way back`
+              : "Lock in Tough Mode"}
+        </button>
+        {confirming && !busy && (
+          <button className="ghost" onClick={() => setConfirming(false)}>
+            Never mind
+          </button>
+        )}
+      </div>
+      {!status.hostsHelperInstalled && (
+        <p className="small-text">
+          Finish the one-time website-blocking setup first.
+        </p>
+      )}
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
 function formatTimeRemaining(milliseconds: number): string {
   const seconds = Math.max(0, Math.ceil(milliseconds / 1_000));
   if (seconds < 60) return seconds + " sec";
@@ -785,6 +895,8 @@ function FocusView({
       )}
 
       <SessionCard status={status} onChanged={() => onChanged()} />
+
+      <ToughModeCard status={status} onChanged={onChanged} />
     </main>
   );
 }
