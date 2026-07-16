@@ -23,7 +23,25 @@ The user we already serve: open source, self-hostable, no one else holding atten
   (Cold Turkey = opaque binary with SYSTEM rights; we = auditable lock).
 - Watch for conflicts: hosted sync / paid tiers must not undermine "your data stays yours."
 
-## 3. Upsell story
+## 3. Multi-device user persona (Freedom persona)
+
+The user who knows blocking one device just moves the scrolling to another — one button, every screen goes quiet. Reference competitor: Freedom ("One session. All devices. Zero distractions.").
+
+See [product/multi-device-persona.md](../product/multi-device-persona.md) for the full analysis.
+
+Key points:
+- The load-bearing feature is *session fan-out* (start on desktop → phone blocks in seconds),
+  not config sync. Latency is the product.
+- Freedom's weakness = it paywalls schedules + locked mode ($39.99/yr "for a schedule");
+  ours stay free forever.
+- We can't claim "every device" yet (no Android/Linux/Chromebook; iPhone sync pending).
+  True claim once iPhone ships: "the only open-source blocker that crosses the phone/desktop line."
+- Freedom markets *against* gamification (no streaks/points/leaderboards) — keep our social
+  features "social, not gamified" or this persona walks.
+- Combined pitch nobody else can make: Tough Mode lock that fans out across devices
+  ("one session, all devices, and you can't back out on any of them").
+
+## 4. Upsell story
 
 Constraint: serve existing users + both personas above, and still have something to sell.
 
@@ -38,13 +56,21 @@ Notes / open sub-questions:
 - Sync-gating is naturally freemium: free = single device / local-only / self-host;
   upsell moment = user tries to add a second device. May not need a classic timed trial at all.
 - Cross-device lock ("a lock that follows you to every device") makes sync valuable to the
-  tough-block persona too — the two personas converge on the paid feature.
+  tough-block persona too — all the personas (tough-block, privacy/self-host, multi-device)
+  converge on sync as the one feature worth paying for. Capability must never be gated,
+  only hosting convenience.
 - Trial duration: 7 days is short for a habit product; consider 14 days, or event-based
   ("free until second device") instead of time-based.
 - Pricing model: one-time (Cold Turkey style) vs subscription — hosted sync has ongoing cost,
   leans subscription, but audience may prefer one-time. TBD.
 - Safety rule: trial/subscription expiry must never silently weaken or delete blocks —
   devices keep enforcing their last-known config locally, forever.
+- CAUTION (from COMPETITORS.md): "sync = paid" is weaker than it first looked. Freedom's
+  *free* tier already syncs blocklists across 5 platforms, and ScreenZen is 100% free on
+  4 platforms. If basic sync is paid here while free at Freedom, the multi-device persona
+  walks. Likely resolution: basic hosted sync free (or generous device cap), and charge for
+  the things with real ongoing value/cost — hosted lock ledger, AI coach, history/insights
+  retention. Needs a decision before any pricing page.
 
 ## Technical learnings from SelfControl architecture report (GPL — ideas only, no code copying)
 
