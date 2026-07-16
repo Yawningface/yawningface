@@ -95,6 +95,7 @@ src-tauri/src/
   settings.rs           persisted settings + tokens
   blocking/hosts.rs     managed hosts-file section + spool file
   blocking/apps.rs      process watcher / killer
+  blocking/lock.rs      Tough Mode lock state + request (macOS)
   blocking/platform.rs  one-time privileged helper install (admin prompt)
 ```
 
@@ -111,6 +112,20 @@ The applier re-validates every domain against a strict charset and only ever
 writes `0.0.0.0` entries inside clearly marked BEGIN/END lines - a tampered
 spool can block sites, never redirect them.
 
+## Tough Mode (macOS)
+
+For the "lock me out, no way back" user (see
+[product/tough-block-persona.md](../../product/tough-block-persona.md)). The
+app writes a lock *request* (end time + domains); the root applier merges it
+monotonically into a root-owned lock file - the end time can only move later
+(max 7 days), domains can only be added. While locked:
+
+- the locked domains stay in the hosts file no matter what the app or spool
+  says (quitting or deleting the app changes nothing);
+- launchd watches `/etc/hosts` and re-asserts the block if it is hand-edited;
+- there is deliberately no code path that ends the lock early - it expires
+  when the clock passes the end time (checked at least every 60 s).
+
 **Uninstall the helper**: macOS  - 
 `sudo launchctl bootout system/org.yawningface.block.hostsd && sudo rm /Library/LaunchDaemons/org.yawningface.block.hostsd.plist "/Library/Application Support/YawningFaceBlock/apply-hosts.sh"`;
 Windows - `schtasks /Delete /TN YawningFaceBlockHosts /F` (elevated) and delete
@@ -123,7 +138,10 @@ managed section is emptied.
   editing the hosts file as admin. It's friction, not a prison - pair it with
   the Chrome extension for request-level blocking.
 - App matching is by process name (prefix, case-insensitive).
-- No strict mode yet: quitting the app stops enforcement. Planned: the
-  privileged helper keeps the last schedule active unless disarmed.
+- Outside Tough Mode, quitting the app stops enforcement of scheduled blocks.
+- Tough Mode is macOS-only and hosts-level (websites, not apps). An admin can
+  still defeat it with `sudo` - it's SelfControl-grade friction, not a prison.
+  Planned hardening: helper refuses self-removal while locked, PF second
+  layer, cloud lock ledger.
 
 MIT © Yawningface

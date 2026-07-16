@@ -34,6 +34,8 @@ pub struct EngineStatus {
     pub session_active: bool,
     pub session_started_at: Option<String>,
     pub session_until: Option<String>,
+    pub tough_lock_active: bool,
+    pub tough_lock_until: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -241,6 +243,18 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     block_set
         .domains
         .retain(|domain| !browser_exemptions.contains(domain));
+
+    // 3c. Tough Mode (macOS): the root helper enforces the lock on its own;
+    // merged here - after exemptions, which must never bend a locked domain -
+    // so the extension bridge, counters and hosts_in_sync reflect reality.
+    let tough_lock = crate::blocking::lock::read_active_lock();
+    if let Some(lock) = &tough_lock {
+        block_set.active_lists.push("Tough Mode".to_string());
+        for d in &lock.domains {
+            block_set.domains.insert(d.clone());
+        }
+    }
+
     let browser_excluded_domains = browser_domain_exclusions(&block_set.domains);
 
     // 4. Apply blocking.
@@ -290,6 +304,10 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         } else {
             None
         };
+        status.tough_lock_active = tough_lock.is_some();
+        status.tough_lock_until = tough_lock.as_ref().and_then(|l| {
+            chrono::DateTime::from_timestamp(l.until_epoch, 0).map(|t| t.to_rfc3339())
+        });
     }
     Ok(())
 }

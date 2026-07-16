@@ -15,6 +15,20 @@ use super::hosts::spool_path;
 #[cfg(target_os = "macos")]
 pub const MAC_DAEMON_LABEL: &str = "org.yawningface.block.hostsd";
 
+/// Bumped whenever the applier script/plist changes so existing installs
+/// re-run the one-time setup. v2 added Tough Mode + hosts self-healing.
+#[cfg(target_os = "macos")]
+pub const MAC_HELPER_VERSION: u32 = 2;
+
+#[cfg(target_os = "macos")]
+fn mac_helper_version_installed() -> bool {
+    std::fs::read_to_string("/Library/Application Support/YawningFaceBlock/helper_version")
+        .ok()
+        .and_then(|s| s.trim().parse::<u32>().ok())
+        .map(|v| v >= MAC_HELPER_VERSION)
+        .unwrap_or(false)
+}
+
 /// Absolute paths for System32 tools. Privileged plumbing must never depend
 /// on PATH: a stripped or broken PATH otherwise turns setup into a cryptic
 /// "program not found" - and the elevated child inherits that same PATH.
@@ -50,6 +64,7 @@ pub fn helper_installed() -> bool {
     #[cfg(target_os = "macos")]
     {
         std::path::Path::new(&format!("/Library/LaunchDaemons/{MAC_DAEMON_LABEL}.plist")).exists()
+            && mac_helper_version_installed()
     }
     #[cfg(target_os = "windows")]
     {
@@ -89,31 +104,89 @@ fn install_helper_macos() -> Result<(), String> {
     let spool_str = spool.to_string_lossy().to_string();
 
     let script = r##"#!/bin/bash
-# yawningface - hosts applier. Runs as root via LaunchDaemon.
-# Reads the user spool file, validates every domain, and rewrites only the
-# managed section of /etc/hosts. Entries always point to 0.0.0.0.
+# yawningface - hosts applier + Tough Mode lock. Runs as root via
+# LaunchDaemon.
+#
+# The user-writable spool can only ever tighten blocking (entries always
+# point to 0.0.0.0). Tough Mode state lives in a root-owned lock file: the
+# app can only *request* a lock, and this script merges requests
+# monotonically - the end time can only move later (capped at 7 days ahead)
+# and domains can only be added. While the lock is active its domains stay
+# blocked no matter what the spool says. There is deliberately no code path
+# that ends a lock early; it expires when the clock passes its end time.
 SPOOL="$1"
-HOSTS="/etc/hosts"
+HOSTS="${2:-/etc/hosts}"
+LOCKDIR="${3:-/Library/Application Support/YawningFaceBlock}"
+LOCKFILE="$LOCKDIR/lock.txt"
+REQUEST="$(dirname "$SPOOL")/lock_request.txt"
 BEGIN="# >>> YAWNINGFACE BLOCK BEGIN >>> (managed section, do not edit)"
 END="# <<< YAWNINGFACE BLOCK END <<<"
+NOW=$(date +%s)
+MAX_UNTIL=$((NOW + 7 * 86400))
+
+# Lines -> lowercase, edge-trimmed, valid hostnames only, deduped. Lines with
+# interior whitespace are rejected outright (no way to smuggle extra fields).
+clean_domains() {
+  tr '[:upper:]' '[:lower:]' \
+    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    | LC_ALL=C grep -E '^[a-z0-9][a-z0-9.-]*$' | LC_ALL=C grep -F . | sort -u
+}
+
+# --- Tough Mode: read current lock, merge any pending request, expire. ---
+LOCK_UNTIL=0
+LOCK_LINES=""
+if [ -f "$LOCKFILE" ]; then
+  first=$(head -n 1 "$LOCKFILE")
+  case "$first" in
+    "UNTIL "*)
+      u="${first#UNTIL }"
+      case "$u" in ""|*[!0-9]*) u=0 ;; esac
+      LOCK_UNTIL=$u
+      LOCK_LINES=$(tail -n +2 "$LOCKFILE")
+      ;;
+  esac
+fi
+if [ -f "$REQUEST" ]; then
+  first=$(head -n 1 "$REQUEST")
+  case "$first" in
+    "UNTIL "*)
+      u="${first#UNTIL }"
+      case "$u" in ""|*[!0-9]*) u=0 ;; esac
+      [ "$u" -gt "$MAX_UNTIL" ] && u=$MAX_UNTIL
+      if [ "$u" -gt "$NOW" ]; then
+        [ "$u" -gt "$LOCK_UNTIL" ] && LOCK_UNTIL=$u
+        LOCK_LINES="$LOCK_LINES"$'\n'"$(tail -n +2 "$REQUEST")"
+      fi
+      ;;
+  esac
+  rm -f "$REQUEST"
+fi
+
+LOCK_DOMAINS=""
+if [ "$LOCK_UNTIL" -gt "$NOW" ]; then
+  LOCK_DOMAINS=$(printf '%s\n' "$LOCK_LINES" | clean_domains)
+  mkdir -p "$LOCKDIR"
+  {
+    echo "UNTIL $LOCK_UNTIL"
+    [ -n "$LOCK_DOMAINS" ] && printf '%s\n' "$LOCK_DOMAINS"
+  } > "$LOCKFILE"
+  chmod 644 "$LOCKFILE"
+else
+  rm -f "$LOCKFILE"
+fi
+
+# --- Effective set = spool + locked domains, all re-validated. ---
+ALL=$( { [ -f "$SPOOL" ] && cat "$SPOOL"; printf '%s\n' "$LOCK_DOMAINS"; } | clean_domains)
 
 SECTION="$BEGIN"$'\n'
-if [ -f "$SPOOL" ]; then
-  while IFS= read -r line; do
-    d=$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
-    case "$d" in
-      *.*) ;;
-      *) continue ;;
-    esac
-    if printf '%s' "$d" | LC_ALL=C grep -Eq '^[a-z0-9][a-z0-9.-]*$'; then
-      SECTION+="0.0.0.0 $d"$'\n'
-      case "$d" in
-        www.*) ;;
-        *) SECTION+="0.0.0.0 www.$d"$'\n' ;;
-      esac
-    fi
-  done < "$SPOOL"
-fi
+while IFS= read -r d; do
+  [ -z "$d" ] && continue
+  SECTION+="0.0.0.0 $d"$'\n'
+  case "$d" in
+    www.*) ;;
+    *) SECTION+="0.0.0.0 www.$d"$'\n' ;;
+  esac
+done <<< "$ALL"
 SECTION+="$END"
 
 TMP=$(mktemp)
@@ -123,10 +196,14 @@ awk -v begin="$BEGIN" -v end="$END" '
   !inblock {print}
 ' "$HOSTS" > "$TMP"
 printf '%s\n' "$SECTION" >> "$TMP"
-cat "$TMP" > "$HOSTS"
+# Idempotent write: launchd also watches the hosts file (self-healing against
+# hand edits), so only rewrite when content differs to avoid a trigger loop.
+if ! cmp -s "$TMP" "$HOSTS"; then
+  cat "$TMP" > "$HOSTS"
+  dscacheutil -flushcache 2>/dev/null
+  killall -HUP mDNSResponder 2>/dev/null
+fi
 rm -f "$TMP"
-dscacheutil -flushcache 2>/dev/null
-killall -HUP mDNSResponder 2>/dev/null
 exit 0
 "##;
 
@@ -145,13 +222,19 @@ exit 0
     <string>{spool}</string>
   </array>
   <key>WatchPaths</key>
-  <array><string>{spool}</string></array>
+  <array>
+    <string>{spool}</string>
+    <string>{request}</string>
+    <string>/etc/hosts</string>
+  </array>
+  <key>StartInterval</key><integer>60</integer>
   <key>RunAtLoad</key><true/>
 </dict>
 </plist>
 "#,
         label = MAC_DAEMON_LABEL,
-        spool = spool_str
+        spool = spool_str,
+        request = super::hosts::lock_request_path().to_string_lossy()
     )
     .map_err(|e| e.to_string())?;
 
@@ -171,11 +254,14 @@ exit 0
          cp '{plist}' '/Library/LaunchDaemons/{label}.plist' && \
          chown root:wheel '/Library/LaunchDaemons/{label}.plist' && \
          chmod 644 '/Library/LaunchDaemons/{label}.plist' && \
+         echo {version} > '/Library/Application Support/YawningFaceBlock/helper_version' && \
+         chmod 644 '/Library/Application Support/YawningFaceBlock/helper_version' && \
          (launchctl bootout system/{label} 2>/dev/null; true) && \
          launchctl bootstrap system '/Library/LaunchDaemons/{label}.plist'",
         script = tmp_script.to_string_lossy(),
         plist = tmp_plist.to_string_lossy(),
-        label = MAC_DAEMON_LABEL
+        label = MAC_DAEMON_LABEL,
+        version = MAC_HELPER_VERSION
     );
 
     // AppleScript string escaping: backslashes and double quotes.

@@ -411,6 +411,54 @@ b {
   margin-top: 4px;
 }
 
+/* ---- Tough Mode: the lock with no early exit ---- */
+
+.card.tough {
+  border-color: var(--danger);
+}
+
+.card.tough.on {
+  align-items: center;
+  text-align: center;
+}
+
+.tough-title {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 2px;
+  color: var(--danger);
+}
+
+.tough-durations {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tough-chip {
+  background: transparent;
+  border: 1px solid var(--rule-faint);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.tough-chip.selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.tough-arm {
+  background: var(--danger);
+  color: var(--surface);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 18px;
+}
+
 .row {
   display: flex;
   justify-content: space-between;
