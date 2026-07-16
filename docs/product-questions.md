@@ -9,7 +9,8 @@ The user who says "I don't trust myself — take the keys away." Reference compe
 See [product/tough-block-persona.md](../product/tough-block-persona.md) for the full persona + the macOS Tough Mode design.
 
 Status:
-- macOS Tough Mode shipped (root-held monotonic lock, self-healing hosts, no early exit).
+- macOS Tough Mode is implemented on `main` for desktop v0.2.22 (root-held
+  monotonic lock, self-healing hosts, confirmed activation, no early exit).
 - Extension still has an emergency unlock escape hatch — strict mode should disable it while a lock is active.
 - Windows: not yet (SYSTEM task exists but no lock semantics).
 - Roadmap hardening: helper refuses self-removal while locked, PF second layer (DoH hole),

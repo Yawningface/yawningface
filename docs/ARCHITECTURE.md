@@ -45,6 +45,8 @@
 | iPhone | FamilyControls selection → ManagedSettings shields applied by a DeviceActivity monitor extension | survives force-quit; requires the Family Controls entitlement + a physical device |
 | Browser | `declarativeNetRequest` rules compiled from the contract (rebuild) | old tab-redirect engine is retired |
 | Android (planned) | UsageStats polling + overlay (TapBlok pattern) - avoids accessibility-policy friction | Play-safe |
+| Linux (planned) | shared Tauri desktop client + root-owned hosts helper; process watcher for apps | implementation belongs in `apps/desktop`; `apps/linux` owns integration/packaging |
+| Chromebook (planned) | MV3 extension first; Android companion where ChromeOS supports Play apps | no claim of system-wide native/Linux-container app enforcement |
 
 ## Telemetry & the coach
 

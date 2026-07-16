@@ -345,13 +345,13 @@ fn normalize_domain(value: &str) -> Option<String> {
 fn config_root() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        return PathBuf::from(std::env::var_os("APPDATA").unwrap_or_default())
-            .join("org.yawningface.block.desktop");
+        PathBuf::from(std::env::var_os("APPDATA").unwrap_or_default())
+            .join("org.yawningface.block.desktop")
     }
     #[cfg(target_os = "macos")]
     {
-        return PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-            .join("Library/Application Support/org.yawningface.block.desktop");
+        PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+            .join("Library/Application Support/org.yawningface.block.desktop")
     }
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
@@ -696,7 +696,7 @@ pub fn install_host() -> Result<(), String> {
                 return Err(format!("Could not register browser bridge for {vendor}."));
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(target_os = "macos")]
@@ -713,7 +713,7 @@ pub fn install_host() -> Result<(), String> {
                 &executable,
             )?;
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]

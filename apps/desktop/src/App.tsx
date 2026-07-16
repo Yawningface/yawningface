@@ -332,7 +332,7 @@ function ToughModeCard({
       <section className="card tough on">
         <div className="tough-title">TOUGH MODE</div>
         <p className="muted">
-          Locked until{" "}
+          Websites locked until{" "}
           {status.toughLockUntil
             ? new Date(status.toughLockUntil).toLocaleString([], {
                 weekday: "short",
@@ -340,8 +340,9 @@ function ToughModeCard({
                 minute: "2-digit",
               })
             : "the timer ends"}
-          . There is no way to stop it early — not from here, not by quitting,
-          not by deleting the app. It ends when the timer ends.
+          . There is no way to stop website blocking early — not from here,
+          not by quitting, not by deleting the app. App blocking still requires
+          yawningface to stay running.
         </p>
       </section>
     );
@@ -373,8 +374,9 @@ function ToughModeCard({
     <section className="card tough">
       <b>Tough Mode</b>
       <p className="muted">
-        Lock the block at the system level. No pause, no unlock, no uninstall
-        trick — the block outlives the app until the timer runs out.
+        Lock websites at the system level. No pause, no unlock, no uninstall
+        trick — website blocking outlives the app until the timer runs out.
+        App blocking still requires yawningface to stay running.
       </p>
       <div className="tough-durations">
         {TOUGH_DURATIONS.map((d) => (

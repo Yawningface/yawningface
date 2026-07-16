@@ -45,8 +45,7 @@ pub fn lock_request_path() -> PathBuf {
 pub fn data_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        let base = std::env::var("LOCALAPPDATA")
-            .unwrap_or_else(|_| "C:\\ProgramData".into());
+        let base = std::env::var("LOCALAPPDATA").unwrap_or_else(|_| "C:\\ProgramData".into());
         PathBuf::from(base).join("org.yawningface.block.desktop")
     }
     #[cfg(target_os = "macos")]
@@ -175,7 +174,7 @@ pub fn flush_dns() {
     }
 }
 
-/// True if the managed hosts section currently matches the desired set  - 
+/// True if the managed hosts section currently matches the desired set  -
 /// how the UI knows whether the privileged applier is working.
 pub fn hosts_section_matches(domains: &BTreeSet<String>) -> bool {
     let valid: Vec<String> = domains

@@ -23,12 +23,12 @@ This is the persona [Freedom](https://freedom.to) built its business on ("One se
 
 | Platform | Freedom | YawningFace |
 | --- | --- | --- |
-| macOS | yes | shipped (incl. Tough Mode lock) |
+| macOS | yes | shipped; Tough Mode is implemented for desktop v0.2.22 |
 | Windows | yes | shipped |
 | Browser extension | yes (session client) | shipped v1; contract rebuild pending |
 | iPhone | yes | v0.1 local-only, sync pending (entitlement is the long pole) |
 | Android | yes (weakest) | Phase 3 |
-| Chromebook / Linux | yes | no |
+| Chromebook / Linux | yes | planned; design placeholders only |
 
 We cannot say "every device" yet. The true, checkable claim (from COMPETITORS.md): **"the only open-source blocker that crosses the phone/desktop line"** — once iPhone sync ships. Until then, this persona is aspirational and the copy must not overpromise.
 

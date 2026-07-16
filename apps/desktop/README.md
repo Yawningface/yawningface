@@ -30,7 +30,7 @@ extension in
 ## Install
 
 Grab the latest `.dmg` (macOS) or `.exe` installer (Windows) from
-[Releases](https://github.com/Yawningface/block_desktop/releases/latest).
+[Releases](https://github.com/Yawningface/yawningface/releases/latest).
 
 The builds are not notarized with Apple / signed with a paid certificate yet
 (macOS builds are ad-hoc signed so the app isn't reported as "damaged"):

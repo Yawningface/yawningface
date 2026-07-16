@@ -12,8 +12,8 @@ The principle (borrowed from the SelfControl school of blockers): **the app you 
 2. The app can only **request** a lock: it writes an end time + domain list to a user-writable request file.
 3. The root applier merges requests **monotonically** into a root-owned lock file (`/Library/Application Support/YawningFaceBlock/lock.txt`): the end time can only move later (capped at 7 days), domains can only be added. Weakening requests are ignored.
 4. While the lock is active, its domains are written into `/etc/hosts` **regardless of what the app or spool says**. There is deliberately no code path — in the app or in the applier — that ends a lock early.
-5. **Self-healing:** launchd watches `/etc/hosts`; hand-editing it triggers an immediate re-apply. A 60-second interval run catches everything else and expires the lock exactly when the end time passes.
-6. Quitting the app, deleting the app, or rebooting changes nothing: the LaunchDaemon and the lock file live in `/Library`, outside the app.
+5. **Self-healing:** launchd watches `/etc/hosts`; hand-editing it triggers an immediate re-apply. A 60-second interval run catches everything else and removes an expired lock on the next run (normally within 60 seconds of its end time).
+6. Quitting the app, deleting the app, or rebooting does not lift website blocking: the LaunchDaemon and the lock file live in `/Library`, outside the app. Application-process blocking is not part of Tough Mode yet and still requires the desktop app to run.
 
 ## What it does not (yet) defend against
 

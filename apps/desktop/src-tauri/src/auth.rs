@@ -72,10 +72,7 @@ pub async fn poll_device_flow(
         let resp = http
             .post(&url)
             .form(&[
-                (
-                    "grant_type",
-                    "urn:ietf:params:oauth:grant-type:device_code",
-                ),
+                ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
                 ("device_code", info.device_code.as_str()),
                 ("client_id", settings.auth0_client_id.as_str()),
             ])

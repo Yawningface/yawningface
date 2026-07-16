@@ -36,11 +36,13 @@ does.
 | --- | --- | --- |
 | **CLI + coach** (`yf`) | [`apps/cli`](apps/cli) | ✅ works today - init/show/validate/coach, 26 tests |
 | **Contract** | [`packages/schema`](packages/schema) | ✅ single source of truth, Rust-parity tests |
-| **Desktop** (Mac/Win tray) | [`apps/desktop`](apps/desktop) | ✅ v0.1 - hosts-file + app blocking, cloud sync, offline cache. Unsigned; no strict mode yet |
+| **Desktop** (Mac/Win tray) | [`apps/desktop`](apps/desktop) | 🚧 v0.2.22 next - hosts-file + app blocking, cloud sync, offline cache, macOS Tough Mode; release pending |
 | **Cloud hub** | [`apps/cloud`](apps/cloud) | ✅ v0.1 - Next.js + Supabase + Auth0, config/devices/events/summary API |
 | **iPhone** | [`apps/iphone`](apps/iphone) | ⚠️ v0.1 local-only - native Screen Time blocking that survives force-quit; not yet wired to the contract ([port notes](apps/iphone/PORT_NOTES.md)) |
 | **Browser extension** | [`apps/extension`](apps/extension) | 🔜 being rebuilt on the contract (the old one shipped, but spoke its own schema) |
 | **Android** | [`apps/android`](apps/android) | 🔜 planned |
+| **Linux** | [`apps/linux`](apps/linux) | 🔜 planned; extends the Tauri desktop client |
+| **Chromebook** | [`apps/chromebook`](apps/chromebook) | 🔜 planned; extension-first |
 
 ## Try it in 60 seconds
 
@@ -59,6 +61,9 @@ apps/desktop        Tauri tray app (Rust engine: hosts file, app killer, sync)
 apps/cloud          the hub (Next.js + Supabase + Auth0) - self-hostable
 apps/iphone         Swift + Screen Time (FamilyControls / DeviceActivity / ManagedSettings)
 apps/extension      Chrome/Edge/Brave (rebuild in progress)
+apps/android        planned Android enforcement client
+apps/linux          planned Linux integration for the shared desktop app
+apps/chromebook     planned ChromeOS integration (extension-first)
 docs/               architecture, roadmap, style guide, competitor scan
 ```
 

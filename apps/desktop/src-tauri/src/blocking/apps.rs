@@ -18,9 +18,9 @@ pub fn kill_blocked(system: &mut System, blocked: &BTreeSet<String>) -> Vec<Stri
 
     for process in system.processes().values() {
         let name = process.name().to_string_lossy().to_lowercase();
-        let matches = needles.iter().any(|n| {
-            !n.is_empty() && (name == *n || name.starts_with(n.as_str()))
-        });
+        let matches = needles
+            .iter()
+            .any(|n| !n.is_empty() && (name == *n || name.starts_with(n.as_str())));
         if matches && process.kill() {
             killed.push(process.name().to_string_lossy().to_string());
         }

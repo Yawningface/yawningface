@@ -199,8 +199,10 @@ mod tests {
 
     #[test]
     fn appearance_serializes_as_a_stable_lowercase_value() {
-        let mut settings = Settings::default();
-        settings.appearance = Appearance::Dark;
+        let settings = Settings {
+            appearance: Appearance::Dark,
+            ..Settings::default()
+        };
         let value = serde_json::to_value(settings).unwrap();
         assert_eq!(value["appearance"], "dark");
     }

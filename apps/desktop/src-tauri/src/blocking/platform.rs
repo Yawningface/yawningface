@@ -16,9 +16,10 @@ use super::hosts::spool_path;
 pub const MAC_DAEMON_LABEL: &str = "org.yawningface.block.hostsd";
 
 /// Bumped whenever the applier script/plist changes so existing installs
-/// re-run the one-time setup. v2 added Tough Mode + hosts self-healing.
+/// re-run the one-time setup. v2 added Tough Mode + hosts self-healing; v3
+/// makes request consumption and root lock persistence atomic.
 #[cfg(target_os = "macos")]
-pub const MAC_HELPER_VERSION: u32 = 2;
+pub const MAC_HELPER_VERSION: u32 = 3;
 
 #[cfg(target_os = "macos")]
 fn mac_helper_version_installed() -> bool {
@@ -39,7 +40,10 @@ fn windir() -> String {
 
 #[cfg(target_os = "windows")]
 fn powershell_exe() -> String {
-    format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", windir())
+    format!(
+        r"{}\System32\WindowsPowerShell\v1.0\powershell.exe",
+        windir()
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -119,6 +123,7 @@ HOSTS="${2:-/etc/hosts}"
 LOCKDIR="${3:-/Library/Application Support/YawningFaceBlock}"
 LOCKFILE="$LOCKDIR/lock.txt"
 REQUEST="$(dirname "$SPOOL")/lock_request.txt"
+REQUEST_WORK="$REQUEST.processing"
 BEGIN="# >>> YAWNINGFACE BLOCK BEGIN >>> (managed section, do not edit)"
 END="# <<< YAWNINGFACE BLOCK END <<<"
 NOW=$(date +%s)
@@ -146,8 +151,25 @@ if [ -f "$LOCKFILE" ]; then
       ;;
   esac
 fi
-if [ -f "$REQUEST" ]; then
-  first=$(head -n 1 "$REQUEST")
+
+# Expire the old state before merging a new request. Otherwise a request that
+# arrives in the minute before periodic cleanup can accidentally resurrect the
+# domains from an already-expired lock.
+if [ "$LOCK_UNTIL" -le "$NOW" ]; then
+  LOCK_UNTIL=0
+  LOCK_LINES=""
+fi
+
+# Claim the complete, atomically-published request before reading it. Keep the
+# claimed file until root state is safely persisted, so a crash retries instead
+# of silently losing an irreversible action.
+if [ ! -f "$REQUEST_WORK" ] && [ -f "$REQUEST" ]; then
+  mv "$REQUEST" "$REQUEST_WORK" 2>/dev/null || true
+fi
+REQUEST_PENDING=0
+if [ -f "$REQUEST_WORK" ]; then
+  REQUEST_PENDING=1
+  first=$(head -n 1 "$REQUEST_WORK")
   case "$first" in
     "UNTIL "*)
       u="${first#UNTIL }"
@@ -155,24 +177,42 @@ if [ -f "$REQUEST" ]; then
       [ "$u" -gt "$MAX_UNTIL" ] && u=$MAX_UNTIL
       if [ "$u" -gt "$NOW" ]; then
         [ "$u" -gt "$LOCK_UNTIL" ] && LOCK_UNTIL=$u
-        LOCK_LINES="$LOCK_LINES"$'\n'"$(tail -n +2 "$REQUEST")"
+        LOCK_LINES="$LOCK_LINES"$'\n'"$(tail -n +2 "$REQUEST_WORK")"
       fi
       ;;
   esac
-  rm -f "$REQUEST"
 fi
 
 LOCK_DOMAINS=""
+PERSISTED=1
 if [ "$LOCK_UNTIL" -gt "$NOW" ]; then
   LOCK_DOMAINS=$(printf '%s\n' "$LOCK_LINES" | clean_domains)
-  mkdir -p "$LOCKDIR"
-  {
-    echo "UNTIL $LOCK_UNTIL"
-    [ -n "$LOCK_DOMAINS" ] && printf '%s\n' "$LOCK_DOMAINS"
-  } > "$LOCKFILE"
-  chmod 644 "$LOCKFILE"
+  mkdir -p "$LOCKDIR" || PERSISTED=0
+  if [ "$PERSISTED" -eq 1 ]; then
+    LOCK_TMP=$(mktemp "$LOCKDIR/.lock.XXXXXX") || PERSISTED=0
+  fi
+  if [ "$PERSISTED" -eq 1 ]; then
+    if {
+      echo "UNTIL $LOCK_UNTIL"
+      [ -n "$LOCK_DOMAINS" ] && printf '%s\n' "$LOCK_DOMAINS"
+    } > "$LOCK_TMP" && chmod 644 "$LOCK_TMP" && mv -f "$LOCK_TMP" "$LOCKFILE"; then
+      :
+    else
+      rm -f "$LOCK_TMP"
+      PERSISTED=0
+    fi
+  fi
 else
-  rm -f "$LOCKFILE"
+  rm -f "$LOCKFILE" || PERSISTED=0
+fi
+
+if [ "$REQUEST_PENDING" -eq 1 ]; then
+  if [ "$PERSISTED" -eq 1 ]; then
+    rm -f "$REQUEST_WORK"
+  else
+    # Leave the claimed request for the next launchd run to retry.
+    exit 1
+  fi
 fi
 
 # --- Effective set = spool + locked domains, all re-validated. ---
@@ -200,8 +240,10 @@ printf '%s\n' "$SECTION" >> "$TMP"
 # hand edits), so only rewrite when content differs to avoid a trigger loop.
 if ! cmp -s "$TMP" "$HOSTS"; then
   cat "$TMP" > "$HOSTS"
-  dscacheutil -flushcache 2>/dev/null
-  killall -HUP mDNSResponder 2>/dev/null
+  if [ "$HOSTS" = "/etc/hosts" ]; then
+    dscacheutil -flushcache 2>/dev/null
+    killall -HUP mDNSResponder 2>/dev/null
+  fi
 fi
 rm -f "$TMP"
 exit 0
@@ -435,5 +477,85 @@ pub fn trigger_apply() {
         let _ = quiet_command(schtasks_exe())
             .args(["/Run", "/TN", "YawningFaceBlockHosts"])
             .output();
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod mac_helper_tests {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    fn embedded_helper() -> &'static str {
+        include_str!("platform.rs")
+            .split_once("let script = r##\"")
+            .expect("embedded helper start")
+            .1
+            .split_once("\"##;")
+            .expect("embedded helper end")
+            .0
+    }
+
+    fn run_helper(spool: &std::path::Path, hosts: &std::path::Path, lock_dir: &std::path::Path) {
+        let mut child = Command::new("/bin/bash")
+            .args(["-s", "--"])
+            .arg(spool)
+            .arg(hosts)
+            .arg(lock_dir)
+            .stdin(Stdio::piped())
+            .spawn()
+            .expect("start embedded helper");
+        child
+            .stdin
+            .take()
+            .expect("helper stdin")
+            .write_all(embedded_helper().as_bytes())
+            .expect("write embedded helper");
+        assert!(child.wait().expect("wait for helper").success());
+    }
+
+    #[test]
+    fn helper_merges_self_heals_and_does_not_resurrect_expired_domains() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("yfblock-helper-test-{nonce}"));
+        let lock_dir = root.join("root-lock");
+        let spool = root.join("spool_domains.txt");
+        let request = root.join("lock_request.txt");
+        let hosts = root.join("hosts");
+        std::fs::create_dir_all(&lock_dir).unwrap();
+        std::fs::write(&spool, "schedule.example\n").unwrap();
+        std::fs::write(&hosts, "127.0.0.1 localhost\n").unwrap();
+
+        let now = chrono::Utc::now().timestamp();
+        std::fs::write(&request, format!("UNTIL {}\nreddit.com\n", now + 600)).unwrap();
+        run_helper(&spool, &hosts, &lock_dir);
+        let lock = std::fs::read_to_string(lock_dir.join("lock.txt")).unwrap();
+        let applied = std::fs::read_to_string(&hosts).unwrap();
+        assert!(lock.contains("reddit.com"));
+        assert!(applied.contains("reddit.com"));
+        assert!(applied.contains("schedule.example"));
+        assert!(!request.exists());
+
+        std::fs::write(&spool, "").unwrap();
+        std::fs::write(&hosts, "127.0.0.1 localhost\n").unwrap();
+        run_helper(&spool, &hosts, &lock_dir);
+        let healed = std::fs::read_to_string(&hosts).unwrap();
+        assert!(healed.contains("reddit.com"));
+        assert!(!healed.contains("schedule.example"));
+
+        std::fs::write(
+            lock_dir.join("lock.txt"),
+            format!("UNTIL {}\nold.example\n", now - 1),
+        )
+        .unwrap();
+        std::fs::write(&request, format!("UNTIL {}\nnew.example\n", now + 900)).unwrap();
+        run_helper(&spool, &hosts, &lock_dir);
+        let renewed = std::fs::read_to_string(lock_dir.join("lock.txt")).unwrap();
+        assert!(renewed.contains("new.example"));
+        assert!(!renewed.contains("old.example"));
+
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

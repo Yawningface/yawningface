@@ -179,10 +179,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     };
 
     // 3. Evaluate schedules -> desired block set.
-    let mut block_set = config
-        .as_ref()
-        .map(schedule::evaluate)
-        .unwrap_or_default();
+    let mut block_set = config.as_ref().map(schedule::evaluate).unwrap_or_default();
 
     // 3a. Local scheduled sessions: same canonical schema, no account needed.
     // This is the file the yf CLI reads and edits (point YF_CONFIG at it).
@@ -217,9 +214,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
         session.clone()
     };
     if session.is_running() {
-        block_set
-            .active_lists
-            .push("Working session".to_string());
+        block_set.active_lists.push("Working session".to_string());
         for d in crate::settings::DEFAULT_SESSION_DOMAINS {
             block_set.domains.insert(d.to_string());
         }
@@ -387,7 +382,10 @@ async fn fetch_config(
     settings: &Settings,
     tokens: &Tokens,
 ) -> Result<Value, String> {
-    let url = format!("{}/api/v1/config", settings.api_base_url.trim_end_matches('/'));
+    let url = format!(
+        "{}/api/v1/config",
+        settings.api_base_url.trim_end_matches('/')
+    );
     let resp = http
         .get(&url)
         .bearer_auth(&tokens.access_token)
@@ -407,7 +405,10 @@ pub async fn register_device(
     tokens: &Tokens,
 ) -> Result<String, String> {
     let state = app.state::<AppState>();
-    let url = format!("{}/api/v1/devices", settings.api_base_url.trim_end_matches('/'));
+    let url = format!(
+        "{}/api/v1/devices",
+        settings.api_base_url.trim_end_matches('/')
+    );
     let resp = state
         .http
         .post(&url)
@@ -431,11 +432,7 @@ pub async fn register_device(
         .ok_or_else(|| "Server response missing deviceId".into())
 }
 
-async fn flush_events(
-    app: &AppHandle,
-    settings: &Settings,
-    tokens: &Tokens,
-) -> Result<(), String> {
+async fn flush_events(app: &AppHandle, settings: &Settings, tokens: &Tokens) -> Result<(), String> {
     let state = app.state::<AppState>();
     let (device_id, batch) = {
         let settings_now = state.settings.lock().unwrap();
@@ -450,7 +447,10 @@ async fn flush_events(
         (device_id, batch)
     };
 
-    let url = format!("{}/api/v1/events", settings.api_base_url.trim_end_matches('/'));
+    let url = format!(
+        "{}/api/v1/events",
+        settings.api_base_url.trim_end_matches('/')
+    );
     let resp = state
         .http
         .post(&url)
@@ -512,10 +512,8 @@ mod browser_exclusion_tests {
         let youtube = BTreeSet::from(["youtube.com".to_string()]);
         assert!(browser_domain_exclusions(&youtube).contains("music.youtube.com"));
 
-        let explicit_music = BTreeSet::from([
-            "youtube.com".to_string(),
-            "music.youtube.com".to_string(),
-        ]);
+        let explicit_music =
+            BTreeSet::from(["youtube.com".to_string(), "music.youtube.com".to_string()]);
         assert!(browser_domain_exclusions(&explicit_music).is_empty());
     }
 }

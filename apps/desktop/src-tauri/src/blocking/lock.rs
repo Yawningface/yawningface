@@ -11,9 +11,13 @@
 //! that ends a lock early. It expires when the clock passes its end time.
 
 use std::collections::BTreeSet;
+use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::hosts;
+
+static NEXT_TEMP_FILE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone)]
 pub struct LockState {
@@ -57,6 +61,17 @@ pub fn read_active_lock() -> Option<LockState> {
     }
 }
 
+/// Whether root committed at least the lock that was requested. Existing
+/// locks may legitimately have a later expiry or additional domains because
+/// the privileged helper merges requests monotonically.
+pub fn satisfies_request(
+    state: &LockState,
+    requested_until: i64,
+    requested_domains: &BTreeSet<String>,
+) -> bool {
+    state.until_epoch >= requested_until && requested_domains.is_subset(&state.domains)
+}
+
 /// Queues a lock request for the privileged applier to pick up.
 pub fn write_lock_request(until_epoch: i64, domains: &BTreeSet<String>) -> Result<(), String> {
     let dir = hosts::data_dir();
@@ -66,7 +81,43 @@ pub fn write_lock_request(until_epoch: i64, domains: &BTreeSet<String>) -> Resul
         content.push_str(d);
         content.push('\n');
     }
-    std::fs::write(hosts::lock_request_path(), content).map_err(|e| e.to_string())
+    atomic_write(&hosts::lock_request_path(), content.as_bytes())
+}
+
+/// Writes a complete request before publishing it with an atomic rename. The
+/// launchd helper watches the destination path, so a truncate-then-write could
+/// otherwise wake it on a partial first line and lose the irreversible action.
+fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Lock request path has no parent directory.".to_string())?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Lock request path has no valid file name.".to_string())?;
+    let sequence = NEXT_TEMP_FILE.fetch_add(1, Ordering::Relaxed);
+    let temp = parent.join(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        sequence
+    ));
+
+    let result = (|| -> Result<(), std::io::Error> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        file.write_all(content)?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&temp, path)
+    })();
+
+    if let Err(error) = result {
+        let _ = std::fs::remove_file(&temp);
+        return Err(format!("Could not queue Tough Mode: {error}"));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -91,5 +142,53 @@ mod tests {
         let state = parse_lock("UNTIL 5\nevil.com 0.0.0.0 bank.com\nok.com").unwrap();
         assert_eq!(state.domains.len(), 1);
         assert!(state.domains.contains("ok.com"));
+    }
+
+    #[test]
+    fn request_confirmation_is_monotonic() {
+        let requested = BTreeSet::from(["reddit.com".to_string()]);
+        let committed = LockState {
+            until_epoch: 200,
+            domains: BTreeSet::from(["reddit.com".to_string(), "youtube.com".to_string()]),
+        };
+        assert!(satisfies_request(&committed, 150, &requested));
+        assert!(!satisfies_request(&committed, 250, &requested));
+        assert!(!satisfies_request(
+            &committed,
+            150,
+            &BTreeSet::from(["example.com".to_string()])
+        ));
+    }
+
+    #[test]
+    fn atomic_write_publishes_only_the_complete_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "yfblock-lock-test-{}-{}",
+            std::process::id(),
+            NEXT_TEMP_FILE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("request.txt");
+
+        atomic_write(&path, b"UNTIL 123\nreddit.com\n").unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "UNTIL 123\nreddit.com\n"
+        );
+
+        // Tough Mode currently publishes requests only on macOS, where rename
+        // atomically replaces an older unconsumed request.
+        #[cfg(unix)]
+        {
+            atomic_write(&path, b"UNTIL 456\nyoutube.com\n").unwrap();
+            assert_eq!(
+                std::fs::read_to_string(&path).unwrap(),
+                "UNTIL 456\nyoutube.com\n"
+            );
+        }
+
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -56,9 +56,13 @@
 
 ## Phase 3 - breadth
 
-- [ ] Android (UsageStats + overlay pattern), App Store / Chrome Web Store
-  submissions, geofence rules (gym relaxes, library tightens), BLE room
-  zones, self-host one-liner (docker compose)
+- [ ] Android (UsageStats + overlay pattern).
+- [ ] Linux target through the shared Tauri desktop client: root helper,
+  packaging, CI, and upgrade/uninstall safety.
+- [ ] Chromebook support through the MV3 extension first, then evaluate the
+  Android companion on Play-enabled ChromeOS hardware.
+- [ ] App Store / Chrome Web Store submissions, geofence rules (gym relaxes,
+  library tightens), BLE room zones, self-host one-liner (docker compose).
 
 ## Non-goals (permanent)
 

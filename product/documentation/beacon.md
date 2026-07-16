@@ -7,10 +7,11 @@ what iOS APIs make it possible, and — importantly — **where in Apple's docs 
 read each claim**, so the next engineer doesn't have to re-derive it.
 
 > TL;DR: The puck is a dumb **iBeacon** advertiser (an ESP32). iOS's **Core
-> Location** does the always-on listening and *wakes/relaunches our app* on
-> proximity enter/exit — no pairing, no MFi, no persistent BLE connection. Our
-> app then shields/unshields apps with the **Screen Time API** (Managed
-> Settings), reusing the exact enforcement the schedule blocker already uses.
+> Location** monitors proximity and can wake/relaunch our app on enter/exit when
+> authorization and background settings permit — no pairing, no MFi, no
+> persistent BLE connection. Our app then shields/unshields apps with the
+> **Screen Time API** (Managed Settings), reusing the exact enforcement the
+> schedule blocker already uses.
 
 ---
 
@@ -19,8 +20,8 @@ read each claim**, so the next engineer doesn't have to re-derive it.
 ```
  ESP32 puck                 iOS (the OS itself)              YawningFace app
  ──────────                 ───────────────────              ───────────────
- broadcasts iBeacon   ──▶   Core Location matches the   ──▶  woken in background
- advert (UUID/major/        registered UUID and fires        (even if terminated)
+ broadcasts iBeacon   ──▶   Core Location matches the   ──▶  may wake in background
+ advert (UUID/major/        registered UUID and fires        (subject to iOS policy)
  minor + measured           an enter / exit event            │
  power), forever                                              ▼
                                                         write ManagedSettingsStore
@@ -36,8 +37,12 @@ Two **independent** systems, kept deliberately separate:
    to our existing schedule-based blocking. The beacon is just a *new trigger*
    into the same shield.
 
-This separation is why "turn off Bluetooth to escape" fails: once the shield is
-applied it stays applied; Bluetooth only governs *when* the trigger fires.
+The enforcement state must **fail closed** when sensing becomes unavailable:
+once a shield is applied, `.unknown`, `.unmonitored`, denied authorization, or
+radio failure must not be treated as an exit. Clear the shield only after a
+genuine `.unsatisfied` transition with no failure diagnostic. This makes
+turning off Bluetooth unable to directly clear an existing shield, but the
+behavior still needs real-device testing on every supported iOS version.
 
 ---
 
@@ -46,7 +51,9 @@ applied it stays applied; Bluetooth only governs *when* the trigger fires.
 An **iBeacon is an open advertising packet**, not a paired/connected accessory.
 Any BLE radio that emits the layout below is a valid beacon to iOS. There is
 **no MFi requirement, no pairing, no CBPeripheral connection** — the app never
-talks *to* the puck. It registers a UUID with the OS and the OS wakes the app.
+talks *to* the puck. It registers a UUID with the OS and the OS may wake the
+app. The UUID is public over the air and can be sniffed or cloned; it is an
+identifier, not authentication or a shared secret.
 
 iBeacon advertising payload the ESP32 must emit:
 
@@ -54,7 +61,7 @@ iBeacon advertising payload the ESP32 must emit:
 | -------------- | ----- | ------------------------------------------------ |
 | Company ID     | 2     | `0x004C` (Apple) — required for the iBeacon type |
 | Beacon type    | 2     | `0x02 0x15`                                       |
-| Proximity UUID | 16    | our shared secret (`uuidgen`)                     |
+| Proximity UUID | 16    | stable public fleet identifier (`uuidgen`)        |
 | Major          | 2     | zone group (e.g. bedroom vs. desk)               |
 | Minor          | 2     | specific puck                                    |
 | Measured power | 1     | calibrated RSSI @ 1 m (e.g. `-59`) → drives `accuracy` |
@@ -138,6 +145,12 @@ Documented facts we rely on:
   launched." Recreate the monitor with the **same name/identifier**; monitoring
   resumes only **after the first unlock following a reboot**.
   <https://developer.apple.com/documentation/corelocation/monitoring-the-user-s-proximity-to-geographic-regions>
+- **Relaunch is conditional, not guaranteed.** Apple describes the system as
+  *trying* to launch the app. Turning off Background App Refresh prevents
+  region-monitoring delivery and background relaunch. The product must expose
+  authorization/background-health state and never promise an always-on trigger
+  when those prerequisites are disabled.
+  <https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/CoreLocation/CoreLocation.html>
 
 **API reference — `CLMonitor`:**
 <https://developer.apple.com/documentation/corelocation/clmonitor>
@@ -271,8 +284,8 @@ target and writes the shared `ManagedSettingsStore` directly. Add a
 ## 9. ESP32 prototype (the puck)
 
 - ESP-IDF ships an `ibeacon` example; Arduino `BLEBeacon` does it in a few lines.
-- The proximity **UUID** is the shared secret between puck and app
-  (`uuidgen`); `measuredPower` (~`-59`) calibrates `accuracy`.
+- The proximity **UUID** is a public fleet identifier (`uuidgen`), not a secret;
+  `measuredPower` (~`-59`) calibrates `accuracy`.
 - **Before the ESP32 arrives:** the **nRF Connect** app on a spare phone can
   emulate an iBeacon so the iOS side is testable immediately.
 
@@ -286,6 +299,12 @@ target and writes the shared `ManagedSettingsStore` directly. Add a
   attainable; background = fixed OS boundary.
 - **Simulator unreliable** for `CLMonitor` — test on device.
 - **20-condition cap** shared app-wide.
+- **Background delivery is user-controlled.** Always authorization and
+  Background App Refresh must remain enabled. The app must surface degraded
+  health and keep an existing shield in place when monitoring becomes unknown.
+- **Beacon identity is cloneable.** UUID/major/minor are public BLE fields, so
+  they identify a puck but do not authenticate it. Do not base a security or
+  payment boundary on beacon identity alone.
 - **iOS 18 `.always` requires a foreground-taken `CLServiceSession`**, re-taken
   instantly on relaunch — miss this and it "works in foreground, dies in
   background."
@@ -297,6 +316,8 @@ target and writes the shared `ManagedSettingsStore` directly. Add a
 | Topic | URL |
 | --- | --- |
 | Region Monitoring & iBeacon (background wake, "beacons just advertise") | <https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/RegionMonitoring/RegionMonitoring.html> |
+| Background delivery prerequisites and Background App Refresh limitation | <https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/CoreLocation/CoreLocation.html> |
+| iBeacon UUIDs are public and can be sniffed | <https://developer.apple.com/ibeacon/Getting-Started-with-iBeacon.pdf> |
 | Core Location overview | <https://developer.apple.com/documentation/corelocation> |
 | `CLMonitor` | <https://developer.apple.com/documentation/corelocation/clmonitor> |
 | `CLMonitor.BeaconIdentityCondition` | <https://developer.apple.com/documentation/corelocation/clmonitor/beaconidentitycondition> |

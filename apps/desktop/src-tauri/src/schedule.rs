@@ -43,7 +43,11 @@ fn evaluate_at(config: &Value, minutes_now: i32, day: &str) -> BlockSet {
 
     for list in lists {
         let meta = list.get("metadata").cloned().unwrap_or(Value::Null);
-        if !meta.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if !meta
+            .get("enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             continue;
         }
         if !applies_to_desktop(&meta) {
@@ -95,9 +99,7 @@ fn is_active_now(meta: &Value, minutes_now: i32, day: &str) -> bool {
     if periods.is_empty() {
         return true;
     }
-    periods
-        .iter()
-        .any(|p| period_active(p, minutes_now, day))
+    periods.iter().any(|p| period_active(p, minutes_now, day))
 }
 
 fn period_active(period: &Value, minutes_now: i32, day: &str) -> bool {
@@ -267,7 +269,10 @@ mod tests {
 
     #[test]
     fn domain_normalization_rejects_garbage() {
-        assert_eq!(normalize_domain("  https://www.LinkedIn.com/feed/ "), "linkedin.com");
+        assert_eq!(
+            normalize_domain("  https://www.LinkedIn.com/feed/ "),
+            "linkedin.com"
+        );
         assert_eq!(normalize_domain("0.0.0.0 evil.com # inject"), "");
         assert_eq!(normalize_domain("no-dot"), "");
     }

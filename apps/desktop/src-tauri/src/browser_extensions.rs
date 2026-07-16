@@ -44,7 +44,7 @@ enum ProfileState {
 pub fn scan() -> BrowserExtensionScan {
     let browsers = browser_specs()
         .into_iter()
-        .filter(|spec| browser_is_present(spec))
+        .filter(browser_is_present)
         .map(scan_browser)
         .collect();
 

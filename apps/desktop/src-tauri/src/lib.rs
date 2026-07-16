@@ -1,6 +1,6 @@
 pub mod auth;
-pub mod browser_extensions;
 pub mod blocking;
+pub mod browser_extensions;
 pub mod native_messaging;
 pub mod schedule;
 pub mod settings;
@@ -20,7 +20,7 @@ use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
 use crate::auth::DeviceCodeInfo;
-use crate::settings::{Appearance, load_json, save_json, LocalSession, Settings, Tokens};
+use crate::settings::{load_json, save_json, Appearance, LocalSession, Settings, Tokens};
 use crate::state::AppState;
 use crate::sync::EngineStatus;
 
@@ -148,11 +148,14 @@ async fn start_session(app: AppHandle, minutes: Option<u64>) -> Result<EngineSta
         let started_at = chrono::Utc::now();
         session.active = true;
         session.started_at = Some(started_at.to_rfc3339());
-        session.until = minutes.map(|m| {
-            (started_at + chrono::Duration::minutes(m as i64)).to_rfc3339()
-        });
+        session.until =
+            minutes.map(|m| (started_at + chrono::Duration::minutes(m as i64)).to_rfc3339());
         save_json(&sync::session_path(&app), &*session)?;
-        sync::push_event(&state, "session_start", json!({ "minutes": minutes, "local": true }));
+        sync::push_event(
+            &state,
+            "session_start",
+            json!({ "minutes": minutes, "local": true }),
+        );
     }
     sync::record_stats(&app, |s| s.record_session_start());
     sync_now(app).await
@@ -271,7 +274,12 @@ async fn start_tough_mode(app: AppHandle, minutes: u64) -> Result<EngineStatus, 
         let minutes = minutes.clamp(1, 7 * 24 * 60);
         let domains = {
             let state = app.state::<AppState>();
-            let mut d = state.last_domains.lock().unwrap().clone().unwrap_or_default();
+            let mut d = state
+                .last_domains
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or_default();
             for dd in crate::settings::DEFAULT_SESSION_DOMAINS {
                 d.insert(dd.to_string());
             }
@@ -280,6 +288,26 @@ async fn start_tough_mode(app: AppHandle, minutes: u64) -> Result<EngineStatus, 
         let until = chrono::Utc::now().timestamp() + minutes as i64 * 60;
         blocking::lock::write_lock_request(until, &domains)?;
         blocking::platform::trigger_apply();
+
+        // Do not tell the UI this irreversible action succeeded until the
+        // root-owned state proves the helper consumed the complete request.
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            if blocking::lock::read_active_lock()
+                .as_ref()
+                .is_some_and(|lock| blocking::lock::satisfies_request(lock, until, &domains))
+            {
+                break;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(
+                    "Tough Mode was requested, but the system helper did not confirm it within 10 seconds. Check the status before assuming websites are locked."
+                        .into(),
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+
         {
             let state = app.state::<AppState>();
             sync::push_event(
@@ -288,8 +316,6 @@ async fn start_tough_mode(app: AppHandle, minutes: u64) -> Result<EngineStatus, 
                 json!({ "minutes": minutes, "domains": domains.len() }),
             );
         }
-        // Give the root helper a moment to consume the request, then refresh.
-        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         sync_now(app).await
     }
 }
@@ -304,7 +330,12 @@ async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
     // Re-write the spool so the fresh helper applies the current state.
     let domains = {
         let state = app.state::<AppState>();
-        let d = state.last_domains.lock().unwrap().clone().unwrap_or_default();
+        let d = state
+            .last_domains
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_default();
         d
     };
     blocking::hosts::write_spool(&domains)?;
