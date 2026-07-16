@@ -193,6 +193,9 @@ exit 0
         }
         return Err(format!("Helper install failed: {err}"));
     }
+    if !helper_installed() {
+        return Err("The blocking helper was not installed. Please try again.".into());
+    }
     Ok(())
 }
 

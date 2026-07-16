@@ -60,8 +60,10 @@ is private - free when it goes public).
 ## Unsigned-build warnings (expected, not failures)
 
 - **Windows SmartScreen**: "More info" → "Run anyway".
-- **macOS Gatekeeper**: unsigned dmg → right-click → Open (or
-  `xattr -cr /Applications/YawningFace\ Block.app`). Real signing/notarization
+- **macOS Gatekeeper**: the dmg is ad-hoc signed (`bundle.macOS.signingIdentity`
+  `"-"` in tauri.conf.json — without it the .app fails codesign verification
+  and macOS reports it as *damaged*). First launch: right-click → Open (or
+  `xattr -cr /Applications/yawningface.app`). Real signing/notarization
   (Apple Developer cert + `TAURI_SIGNING_*` secrets) is a Phase-1 roadmap item.
 
 ## Troubleshooting

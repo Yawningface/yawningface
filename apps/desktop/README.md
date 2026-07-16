@@ -32,10 +32,11 @@ extension in
 Grab the latest `.dmg` (macOS) or `.exe` installer (Windows) from
 [Releases](https://github.com/Yawningface/block_desktop/releases/latest).
 
-The builds are unsigned for now:
+The builds are not notarized with Apple / signed with a paid certificate yet
+(macOS builds are ad-hoc signed so the app isn't reported as "damaged"):
 
-- **macOS**: right-click the app → Open (first launch only), or
-  `xattr -cr "/Applications/YawningFace Block.app"`.
+- **macOS**: right-click the app → Open (first launch only). If macOS still
+  refuses, run `xattr -cr /Applications/yawningface.app`.
 - **Windows**: SmartScreen → "More info" → "Run anyway".
 
 ## Configure
