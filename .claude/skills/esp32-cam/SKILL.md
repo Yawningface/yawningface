@@ -99,5 +99,8 @@ cannot open it while a monitor holds it.
 `LibreFOMO on-device` - a TFLite Micro **strawberry** detector, 192x192x3 in → 24x24x2 out,
 603308-byte arena. Serves `/fomo` (JSON) and `/jpg` (frame) once WiFi joins, else prints
 `WiFi failed - running serial-only` (its current state - it is not joining the network).
-Its source is not on this machine, so the **only copy is the backup**:
-`~\esp32-cam-backup\firmware-f008d1c6e9f0-*.bin`. Do not erase without keeping it.
+
+Source: `~\LibreFOMO-experimenting\firmware_fomo\` (private repo
+`LibreYOLO/LibreFOMO-experimenting`), mirrored in the worktree
+`~\Documents\GitHub\libreyolo-librefomo-edge-parity\esp32_fomo\firmware_fomo\`. A flash
+backup of the exact running image is at `~\esp32-cam-backup\firmware-f008d1c6e9f0-*.bin`.
