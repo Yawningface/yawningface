@@ -9,6 +9,11 @@ struct YawningFaceApp: App {
             ScheduleManager.startSchedules()
         }
         StreakManager.checkAndUpdateStreak()
+
+        // Re-register beacon regions on launch (including a beacon-triggered
+        // background relaunch). resume() no-ops unless a zone is enabled. A
+        // MainActor hop because BeaconManager is main-actor isolated.
+        Task { @MainActor in BeaconManager.shared.resume() }
     }
 
     var body: some Scene {

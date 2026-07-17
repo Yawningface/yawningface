@@ -90,6 +90,9 @@ struct BlocksView: View {
                     .padding(.horizontal)
                 }
 
+                // Beacon zones: block apps when near a puck.
+                BeaconZonesView()
+
                 Spacer()
             }
         }

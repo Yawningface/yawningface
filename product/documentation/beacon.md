@@ -121,6 +121,20 @@ for try await event in await monitor.events {
 }
 ```
 
+**We do not ship the wildcard above.** It reads well but is asymmetric: a
+wildcarded condition tells you *which* puck you reached through
+`event.refinement`, and on **exit there is no refinement**, so one condition per
+UUID cannot say which zone you just left. We register **one condition per zone
+with an explicit major** (`init(uuid:major:)`, identifier `zone-<major>`)
+instead, which makes enter and exit symmetric and maps 1:1 onto the
+`.beaconZone(major)` store. Cost: one of the 20 conditions per zone, which is
+plenty. Apple's own wording backs this: a condition is satisfied "only when the
+device is at that site where the beacons match both UUID and major values".
+
+The wildcard still has a job, just not enforcement: use it in the **foreground,
+with ranging**, for "tap to pair your puck" onboarding, and read the discovered
+major/minor out of `event.refinement`.
+
 Documented facts we rely on:
 
 - **Wildcards.** `BeaconIdentityCondition` has `init(uuid:)`, `init(uuid:major:)`,
@@ -135,9 +149,16 @@ Documented facts we rely on:
   events with `.unmonitored` / the `conditionLimitExceeded` diagnostic.
   <https://developer.apple.com/documentation/corelocation/monitoring-the-user-s-proximity-to-geographic-regions>
 - **Event states & diagnostics.** `event.state` ∈ `.satisfied`/`.unsatisfied`/
-  `.unknown`/`.unmonitored`; each event also carries diagnostics
-  (`authorizationDenied`, `authorizationDeniedGlobally`, `insufficientlyInUse`,
-  `conditionUnsupported`, `accuracyLimited`, …) so you know *why* nothing fired.
+  `.unknown`/`.unmonitored` (the type is `CLMonitor.Event.State`, a typealias for
+  `__CLMonitoringState`). Diagnostics are **ten flat `Bool` properties on the
+  event**, not a nested error object, and are **iOS 18+ even though `CLMonitor`
+  is iOS 17+** (see section 8): `accuracyLimited`, `authorizationDenied`,
+  `authorizationDeniedGlobally`, `authorizationRequestInProgress`,
+  `authorizationRestricted`, `conditionLimitExceeded`, `conditionUnsupported`,
+  `insufficientlyInUse`, `persistenceUnavailable`, `serviceSessionRequired`.
+  That last one is how the iOS 18 session gotcha in section 5 announces itself,
+  and OR-ing all ten is exactly the fail-closed test: any of them true means
+  sensing is degraded, so an `.unsatisfied` must **not** be read as an exit.
   <https://developer.apple.com/documentation/corelocation/clmonitor/event>
 - **Background relaunch.** "Core Location will launch your app in the background
   (if it was terminated) as long as it is authorized to receive user location.
@@ -224,6 +245,27 @@ Design decision for v1: **monitoring only**, accept the fixed boundary. Ranging
 is a later refinement (range briefly inside the ~10 s wake window if we want to
 gate on `near` vs `far`).
 
+### The radius knob is on the puck, not in the API
+
+"You can't dial the radius" is true of the **software**, and it misses that the
+boundary is a *link-budget* threshold: the OS decides you have arrived when the
+advert is loud enough. Shrink what the puck transmits and the bubble shrinks
+with it, no API required.
+
+Measured on the real board (2026-07-17): raising `tx` from 0 to +9 dBm moved
+observed RSSI from **-84.9 to -74.8 dBm**, a +10.1 dB shift for a +9 dB request.
+The ESP32 ladder spans **-12 to +9 dBm**, so there is ~21 dB of physical range
+control on the puck, which is roughly an order of magnitude in distance.
+
+This is the cheap way to get a bedside-sized zone rather than a whole-flat one:
+turn the puck down, not the app up. Two caveats:
+
+- `measuredPower` **must be recalibrated whenever `tx` changes** - it is the RSSI
+  at 1 m *at the power you actually transmit*. Drop TX 9 dB without re-measuring
+  and every distance iOS reports is wrong by 9 dB.
+- It moves the boundary, it does not sharpen it. Exit lag and RSSI jitter are
+  unchanged.
+
 **Doc source — Ranging for Beacons** (sample: `CLBeaconIdentityConstraint`,
 `startMonitoring` then `didRange`, "monitor before ranging" rationale):
 <https://developer.apple.com/documentation/corelocation/ranging-for-beacons>
@@ -261,19 +303,53 @@ The beacon adds a trigger; the enforcement is our existing stack:
 
 **Architectural subtlety:** the beacon wake cold-launches the **main app**, not
 the `DeviceActivityMonitorExtension`. So the beacon handler lives in the app
-target and writes the shared `ManagedSettingsStore` directly. Add a
-`blockReason` flag to the App Group and **union** it with the schedule state
-(shielded if *either* says so) so a schedule-unblock doesn't stomp a beacon-block.
+target and writes the shared `ManagedSettingsStore` directly.
+
+**A `blockReason` flag is no longer the answer.** That advice predates the
+current `Enforcement.swift`, which already solved this problem more cleanly:
+`ManagedSettingsStore.Name` now has one store per concern (`.session`,
+`.schedule(i)`), and **iOS itself applies the union of every store while
+clearing one leaves the others intact**. So a beacon block is just another
+store, `.beaconZone(major)` - no flag to keep in sync, no union to hand-roll,
+and a schedule ending cannot stomp a beacon block because it never touches that
+store. Implemented in `apps/iphone/YawningFace/BeaconManager.swift`.
 
 ---
 
 ## 8. iOS capabilities / Info.plist checklist
 
-- `NSLocationWhenInUseUsageDescription` + `NSLocationAlwaysAndWhenInUseUsageDescription`
-- `UIBackgroundModes` → `location` (pairs with `CLBackgroundActivitySession`
-  for `whenInUse`; the `.always` region machinery handles the relaunch)
-- (optional) `NSLocationRequireExplicitServiceSession`
-- **No special beacon entitlement** — monitoring rides on ordinary Core
+**There is no Info.plist to edit for the app target.** It builds with
+`GENERATE_INFOPLIST_FILE = YES`, so these go in as `INFOPLIST_KEY_*` build
+settings in `project.pbxproj`, **in both the Debug and Release configs** (the
+extensions are the opposite: they have real `Info.plist` files):
+
+- `INFOPLIST_KEY_NSLocationWhenInUseUsageDescription`
+- `INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription`
+- `INFOPLIST_KEY_UIBackgroundModes = location` (pairs with
+  `CLBackgroundActivitySession` for `whenInUse`; the `.always` region machinery
+  handles the relaunch)
+- (optional) `INFOPLIST_KEY_NSLocationRequireExplicitServiceSession`
+
+Other integration facts, confirmed against the project file:
+
+- **`BeaconManager.swift` needs no pbxproj surgery.** The app target's
+  `YawningFace/` folder is an Xcode 16 synchronized group, so dropping the file
+  in compiles it. (Contrast `Enforcement.swift`, which needs
+  `add-enforcement-file.rb` only because the *extensions* are classic targets.)
+  The beacon handler is app-only, so it never needs that treatment.
+- **The beacon feature is iOS 18+, and the table in section 3 undersells why.**
+  The app's deployment target is iOS 17.0 and `CLMonitor` is indeed iOS 17+, so
+  it looks like the modern path is available. It is not, in any form we can
+  ship: **`CLMonitor.Event`'s ten diagnostic Bools are iOS 18+** (they landed a
+  release after the monitor), and `CLServiceSession` is iOS 18+ too. Without the
+  diagnostics an `.unsatisfied` cannot be distinguished from degraded sensing,
+  so the **fail-closed rule in section 1 is unimplementable on iOS 17**. Found by
+  compiling, not by reading: Apple's docs pages do not surface the per-property
+  availability. `BeaconManager` is therefore `@available(iOS 18.0, *)` as a
+  whole; the rest of the app still ships to 17 and beacon zones just do not
+  appear there. If iOS 17 must be supported, that is the legacy
+  `CLLocationManager` + `CLBeaconRegion` path, with no diagnostics either way.
+- **No special beacon entitlement** - monitoring rides on ordinary Core
   Location. FamilyControls entitlement already present.
 - Wire `BeaconManager.resume()` into `YawningFaceApp.init()` (or an
   `AppDelegate` `willFinishLaunching`) so the `CLServiceSession` is re-taken
@@ -283,11 +359,29 @@ target and writes the shared `ManagedSettingsStore` directly. Add a
 
 ## 9. ESP32 prototype (the puck)
 
-- ESP-IDF ships an `ibeacon` example; Arduino `BLEBeacon` does it in a few lines.
-- The proximity **UUID** is a public fleet identifier (`uuidgen`), not a secret;
-  `measuredPower` (~`-59`) calibrates `accuracy`.
-- **Before the ESP32 arrives:** the **nRF Connect** app on a spare phone can
-  emulate an iBeacon so the iOS side is testable immediately.
+**Built and verified: [`apps/beacon`](../../apps/beacon/README.md).** Running on
+an AI-Thinker ESP32-CAM, decoded off the air by a separate radio (not trusted
+from the board's own logs). That README is the source of truth for the firmware;
+the essentials:
+
+- Fleet UUID **`088FD0AC-A9B1-407B-A9F1-84BA43FCF681`**, `major` = zone,
+  `minor` = puck. Public identifier, not a secret.
+- Advert is a hand-built 30-byte iBeacon payload rather than `BLEBeacon`, whose
+  `setMajor`/`setMinor` need an endian swap that is easy to get silently wrong.
+  Verified `NON_CONNECTABLE_UNDIRECTED` with no scan response.
+- 100 ms advertising interval, Apple's iBeacon recommendation. Slower measurably
+  delays enter and worsens the already-laggy exit.
+- Zone and radio config live in NVS and are set over serial, so one build serves
+  every puck.
+- **`measuredPower` is still the `-59` placeholder, not a measurement.** Until
+  someone takes a median RSSI at exactly 1 m and sets it, every distance iOS
+  derives is off by whatever that guess is wrong by.
+- **ESP32 is a prototype radio.** A beacon must advertise continuously to be
+  detectable, so it cannot deep-sleep and draws tens of mA. A shipping puck
+  wants an nRF52-class part idling in the tens of µA.
+
+**No ESP32 needed to start:** the **nRF Connect** app on a spare phone emulates
+an iBeacon, so the iOS side is testable without hardware.
 
 ---
 

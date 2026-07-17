@@ -185,6 +185,7 @@ bundle identifier is not prefixed"; and the extension must be added to the app's
 | `device was not, or could not be, unlocked` (error 7 / Locked) | **Not a failure.** The build + install SUCCEEDED; the phone was locked at launch. Unlock it and open the app, or re-run. `deploy.sh` now reports this plainly. |
 | iPhone shows `unavailable` in `devicectl list devices` | Locked, unplugged, or trust expired. Unlock, re-seat USB, re-tap Trust. |
 | `BUILD FAILED ... iOS 26.5 Platform Not Installed` | The simulator runtime is still downloading, or CoreSimulator is stale. Wait for `xcodebuild -downloadPlatform iOS`; if it says Ready but `simctl list runtimes` is empty, `killall -9 com.apple.CoreSimulator.CoreSimulatorService`. |
+| `No available simulator runtimes for platform iphonesimulator. SimServiceContext supportedRuntimes=[]` (fails on Assets.xcassets) | `actool` refuses to run with **zero** simulator runtimes installed - and it breaks **device** builds too, not just sim. Caused by deleting every runtime to reclaim disk. Keep at least one: `xcodebuild -downloadPlatform iOS` (~8.5 GB). Do not delete the last runtime to save space; delete DeviceSupport instead (see Disk). |
 | `Invalid runtime` when creating a sim | Pass the full runtime id, e.g. `com.apple.CoreSimulator.SimRuntime.iOS-26-5`, discovered from `xcrun simctl list runtimes`. |
 | Homebrew tool "command not found" over SSH | Non-interactive SSH has a minimal PATH. Prefix: `export PATH=/opt/homebrew/bin:$PATH`. (`xcodebuild`/`xcrun`/`simctl` are in `/usr/bin` and always work.) |
 | `~` becomes a `C:\...` path on the mini | Local MSYS bash expands `~` before sending. In remote command strings use a single-quoted `$HOME` (expands on the Mac), not `~`. This bit `deploy.sh` once. |
@@ -200,6 +201,9 @@ fail. `deploy.sh` warns under 3 GB. To reclaim, in order of safety:
 ssh mini "df -h /"                                   # check first
 # safe, re-downloadable caches:
 ssh mini "rm -rf ~/Library/Developer/Xcode/DerivedData ~/Library/Caches/Homebrew"
+# biggest SAFE single reclaim (~11 GB/version): DeviceSupport is debug-symbol
+# cache only - NOT needed to build or `devicectl install`, regenerates on demand:
+ssh mini "rm -rf ~/Library/Developer/Xcode/'iOS DeviceSupport'/*"
 # Docker without touching the running services or boringtube's media volume:
 ssh mini "docker image prune -af && docker builder prune -af"
 ssh mini "docker run --rm --privileged --pid=host docker/desktop-reclaim-space"  # shrinks the sparse image
