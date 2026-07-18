@@ -119,14 +119,14 @@ pub fn record_stats(app: &AppHandle, f: impl FnOnce(&mut crate::stats::Stats)) {
 
 /// Fast loop: kill blocked apps.
 pub async fn run_killer_loop(app: AppHandle) {
-    let mut system = sysinfo::System::new();
+    let mut killer = apps::AppKiller::new();
     loop {
         let blocked: BTreeSet<String> = {
             let state = app.state::<AppState>();
             let set = state.blocked_apps.lock().unwrap();
             set.clone()
         };
-        let killed = apps::kill_blocked(&mut system, &blocked);
+        let killed = killer.kill_blocked(&blocked);
         if !killed.is_empty() {
             for name in killed {
                 {
