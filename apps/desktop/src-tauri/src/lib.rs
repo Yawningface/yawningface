@@ -548,7 +548,7 @@ pub fn run() {
 
             // macOS: menu-bar app feel (no Dock icon).
             #[cfg(target_os = "macos")]
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             // A left-click starts a 1 h working session. Once active, the same
             // click opens the app; it never ends protection from the tray.

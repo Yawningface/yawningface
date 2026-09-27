@@ -74,8 +74,7 @@ fn name_matches(needle: &str, name: &str) -> bool {
 
 /// True when `exe_path` is the rule's file, or sits inside the rule's folder.
 fn path_matches(needle: &str, exe_path: &str) -> bool {
-    !needle.is_empty()
-        && (exe_path == needle || exe_path.starts_with(&format!("{needle}/")))
+    !needle.is_empty() && (exe_path == needle || exe_path.starts_with(&format!("{needle}/")))
 }
 
 struct CachedHash {
@@ -160,7 +159,10 @@ impl AppKiller {
                 let Some(hash) = self.hash_for(path) else {
                     continue;
                 };
-                if rules.iter().any(|r| matches!(r, Rule::Hash(h) if *h == hash)) {
+                if rules
+                    .iter()
+                    .any(|r| matches!(r, Rule::Hash(h) if *h == hash))
+                {
                     candidate.matched = true;
                 }
             }
