@@ -327,18 +327,8 @@ async fn setup_hosts_helper(app: AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())??;
 
-    // Re-write the spool so the fresh helper applies the current state.
-    let domains = {
-        let state = app.state::<AppState>();
-        let d = state
-            .last_domains
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap_or_default();
-        d
-    };
-    blocking::hosts::write_spool(&domains)?;
+    // The fresh helper applies the spool as it loads; nudge it anyway. The
+    // sync rewrites the spool if it no longer matches the current state.
     blocking::platform::trigger_apply();
     let _ = sync_now(app).await;
     Ok(())
@@ -616,6 +606,13 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running yawningface");
+        .build(tauri::generate_context!())
+        .expect("error while building yawningface")
+        .run(|_app, event| {
+            // Quitting stops blocking (Tough Mode excepted). A second
+            // instance exits before this loop runs, so it never gets here.
+            if let tauri::RunEvent::Exit = event {
+                sync::release_blocking();
+            }
+        });
 }

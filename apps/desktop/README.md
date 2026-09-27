@@ -138,7 +138,11 @@ managed section is emptied.
   editing the hosts file as admin. It's friction, not a prison - pair it with
   the Chrome extension for request-level blocking.
 - App matching is by process name (prefix, case-insensitive).
-- Outside Tough Mode, quitting the app stops enforcement of scheduled blocks.
+- Outside Tough Mode, quitting the app lifts its website blocks. If the app
+  dies instead (crash, force quit), the macOS helper still lifts each
+  time-boxed block - a working session, a schedule window - when it ends;
+  open-ended blocks stay until the app runs again. The Windows applier does
+  not expire blocks by itself yet.
 - Tough Mode is macOS-only and hosts-level (websites, not apps). An admin can
   still defeat it with `sudo` - it's SelfControl-grade friction, not a prison.
   Planned hardening: helper refuses self-removal while locked, PF second

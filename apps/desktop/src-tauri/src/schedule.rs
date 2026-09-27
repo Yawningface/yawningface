@@ -13,29 +13,91 @@
 //!   }]
 //! }
 
-use chrono::{Datelike, Local, Timelike};
+use chrono::{Datelike, Duration, Local, NaiveDateTime, TimeZone, Timelike};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct BlockSet {
     pub domains: BTreeSet<String>,
     pub apps: BTreeSet<String>,
     pub active_lists: Vec<String>,
+    /// Unix time at which each time-boxed domain stops being blocked. Domains
+    /// missing here have no end in sight (an always-on list, an open-ended
+    /// session). The root helper uses it to lift a block that ends while the
+    /// app is not running.
+    pub domain_until: BTreeMap<String, i64>,
+}
+
+impl BlockSet {
+    /// Blocks `domain` until `until` (`None`: no end in sight). A domain
+    /// blocked for several reasons stays blocked until the last one ends.
+    pub fn block_domain(&mut self, domain: String, until: Option<i64>) {
+        let newly_blocked = self.domains.insert(domain.clone());
+        match until {
+            None => {
+                self.domain_until.remove(&domain);
+            }
+            Some(end) if newly_blocked => {
+                self.domain_until.insert(domain, end);
+            }
+            Some(end) => {
+                // Already blocked with no end: that reason still holds.
+                if let Some(current) = self.domain_until.get_mut(&domain) {
+                    *current = (*current).max(end);
+                }
+            }
+        }
+    }
+
+    pub fn merge(&mut self, other: BlockSet) {
+        for domain in other.domains {
+            let until = other.domain_until.get(&domain).copied();
+            self.block_domain(domain, until);
+        }
+        self.apps.extend(other.apps);
+        for name in other.active_lists {
+            if !self.active_lists.contains(&name) {
+                self.active_lists.push(name);
+            }
+        }
+    }
 }
 
 pub fn evaluate(config: &Value) -> BlockSet {
-    let now = Local::now();
-    let minutes_now = (now.hour() * 60 + now.minute()) as i32;
-    let day = day_key(now.weekday().num_days_from_monday());
-    evaluate_at(config, minutes_now, day)
+    evaluate_local(config, Local::now().naive_local())
 }
 
 fn day_key(days_from_monday: u32) -> &'static str {
     ["mon", "tue", "wed", "thu", "fri", "sat", "sun"][days_from_monday as usize % 7]
 }
 
+fn minutes_of(t: NaiveDateTime) -> i32 {
+    (t.hour() * 60 + t.minute()) as i32
+}
+
+fn day_of(t: NaiveDateTime) -> &'static str {
+    day_key(t.weekday().num_days_from_monday())
+}
+
+/// The contract's `evaluateAt(config, minutes, day)`, on a reference week.
+#[cfg(test)]
 fn evaluate_at(config: &Value, minutes_now: i32, day: &str) -> BlockSet {
+    let days_from_monday = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        .iter()
+        .position(|d| *d == day)
+        .expect("day key") as i64;
+    // 1 January 2024 was a Monday.
+    let monday = chrono::NaiveDate::from_ymd_opt(2024, 1, 1)
+        .and_then(|d| d.and_hms_opt(0, 0, 0))
+        .expect("reference Monday");
+    let now = monday + Duration::days(days_from_monday) + Duration::minutes(minutes_now as i64);
+    evaluate_local(config, now)
+}
+
+fn evaluate_local(config: &Value, now: NaiveDateTime) -> BlockSet {
+    let minutes_now = minutes_of(now);
+    let day = day_of(now);
     let mut out = BlockSet::default();
     let Some(lists) = config.get("blocklists").and_then(|v| v.as_array()) else {
         return out;
@@ -65,10 +127,11 @@ fn evaluate_at(config: &Value, minutes_now: i32, day: &str) -> BlockSet {
         out.active_lists.push(name);
 
         if let Some(targets) = list.get("targets") {
+            let until = active_until(&meta, now).and_then(local_epoch);
             for d in str_array(targets, "websites") {
                 let d = normalize_domain(&d);
                 if !d.is_empty() {
-                    out.domains.insert(d);
+                    out.block_domain(d, until);
                 }
             }
             for a in str_array(targets, "apps") {
@@ -128,6 +191,57 @@ fn period_active(period: &Value, minutes_now: i32, day: &str) -> bool {
         (Some(_), Some(_)) => false,
         _ => matches_day(day), // malformed times -> fail closed towards blocking
     }
+}
+
+/// When a list that is active at `now` stops blocking, following back-to-back
+/// periods to the end. `None`: no end in sight (no time periods, or still
+/// active eight days from now).
+fn active_until(meta: &Value, now: NaiveDateTime) -> Option<NaiveDateTime> {
+    let periods = meta
+        .get("timePeriods")
+        .and_then(|v| v.as_array())
+        .filter(|periods| !periods.is_empty())?;
+    let horizon = now + Duration::days(8);
+    let mut until = now;
+    while until < horizon {
+        let (minutes, day) = (minutes_of(until), day_of(until));
+        // Every active period ends strictly after `until`, so this advances.
+        let Some(end) = periods
+            .iter()
+            .filter(|p| period_active(p, minutes, day))
+            .map(|p| period_end(p, until))
+            .max()
+        else {
+            return Some(until);
+        };
+        until = end;
+    }
+    None
+}
+
+/// When `period`, active at `at`, ends.
+fn period_end(period: &Value, at: NaiveDateTime) -> NaiveDateTime {
+    let midnight = at.date().and_hms_opt(0, 0, 0).expect("midnight");
+    let minutes_after_midnight = |m: i32| midnight + Duration::minutes(m as i64);
+    let start = parse_hhmm(period.get("startTime"));
+    let end = parse_hhmm(period.get("endTime"));
+    match (start, end) {
+        (Some(s), Some(e)) if s < e => minutes_after_midnight(e),
+        (Some(s), Some(e)) if s > e && minutes_of(at) >= s => minutes_after_midnight(e + 24 * 60),
+        (Some(s), Some(e)) if s > e => minutes_after_midnight(e),
+        // Equal or malformed times block the whole day.
+        _ => minutes_after_midnight(24 * 60),
+    }
+}
+
+/// Unix time of a local wall-clock time. When clocks fall back, the later of
+/// the two readings wins; a time skipped when clocks spring forward has no
+/// answer, so the block keeps no end rather than lifting early.
+fn local_epoch(t: NaiveDateTime) -> Option<i64> {
+    Local
+        .from_local_datetime(&t)
+        .latest()
+        .map(|t| t.timestamp())
 }
 
 fn previous_day(day: &str) -> &'static str {
@@ -265,6 +379,93 @@ mod tests {
             { "name": "B", "metadata": { "enabled": true, "devices": ["mobile"] }, "targets": { "websites": ["b.com"] } }
         ]});
         assert!(evaluate_at(&cfg, 100, "mon").domains.is_empty());
+    }
+
+    fn at(day: u32, hhmm: &str) -> NaiveDateTime {
+        // January 2024: the 1st was a Monday.
+        let (h, m) = hhmm.split_once(':').unwrap();
+        chrono::NaiveDate::from_ymd_opt(2024, 1, day)
+            .and_then(|d| d.and_hms_opt(h.parse().unwrap(), m.parse().unwrap(), 0))
+            .unwrap()
+    }
+
+    fn periods(periods: Value) -> Value {
+        json!({ "enabled": true, "timePeriods": periods })
+    }
+
+    #[test]
+    fn window_ends_at_its_end_time() {
+        let meta = config()["blocklists"][0]["metadata"].clone();
+        assert_eq!(active_until(&meta, at(1, "10:15")), Some(at(1, "13:00")));
+    }
+
+    #[test]
+    fn back_to_back_periods_end_together() {
+        let meta = periods(json!([
+            { "startTime": "09:00", "endTime": "12:00" },
+            { "startTime": "12:00", "endTime": "14:30" }
+        ]));
+        assert_eq!(active_until(&meta, at(1, "10:00")), Some(at(1, "14:30")));
+    }
+
+    #[test]
+    fn overnight_window_ends_the_next_morning() {
+        let meta =
+            periods(json!([{ "startTime": "22:00", "endTime": "07:00", "schedule": ["mon"] }]));
+        assert_eq!(active_until(&meta, at(1, "23:00")), Some(at(2, "07:00")));
+        assert_eq!(active_until(&meta, at(2, "06:00")), Some(at(2, "07:00")));
+    }
+
+    #[test]
+    fn whole_days_run_until_the_last_selected_day_ends() {
+        let meta = periods(
+            json!([{ "startTime": "00:00", "endTime": "00:00", "schedule": ["sat", "sun"] }]),
+        );
+        assert_eq!(active_until(&meta, at(6, "15:00")), Some(at(8, "00:00")));
+    }
+
+    #[test]
+    fn lists_with_no_end_in_sight_have_none() {
+        assert_eq!(
+            active_until(&json!({ "enabled": true }), at(1, "10:00")),
+            None
+        );
+        let every_day = periods(json!([{ "startTime": "00:00", "endTime": "00:00" }]));
+        assert_eq!(active_until(&every_day, at(1, "10:00")), None);
+
+        let cfg = json!({ "blocklists": [{ "name": "Always", "metadata": { "enabled": true },
+            "targets": { "websites": ["reddit.com"] } }] });
+        let set = evaluate_at(&cfg, 10 * 60, "mon");
+        assert!(set.domains.contains("reddit.com"));
+        assert!(set.domain_until.is_empty());
+    }
+
+    #[test]
+    fn evaluation_records_when_windowed_domains_end() {
+        let set = evaluate_at(&config(), 10 * 60, "mon");
+        assert_eq!(
+            set.domain_until.get("twitter.com").copied(),
+            local_epoch(at(1, "13:00"))
+        );
+    }
+
+    #[test]
+    fn a_domain_stays_blocked_until_its_last_reason_ends() {
+        let mut set = BlockSet::default();
+        set.block_domain("reddit.com".into(), Some(100));
+        set.block_domain("reddit.com".into(), Some(50));
+        assert_eq!(set.domain_until.get("reddit.com"), Some(&100));
+        set.block_domain("reddit.com".into(), None);
+        set.block_domain("reddit.com".into(), Some(300));
+        assert!(set.domains.contains("reddit.com"));
+        assert!(set.domain_until.is_empty());
+
+        let mut other = BlockSet::default();
+        other.block_domain("x.com".into(), Some(200));
+        other.block_domain("reddit.com".into(), Some(400));
+        set.merge(other);
+        assert_eq!(set.domain_until.get("x.com"), Some(&200));
+        assert!(!set.domain_until.contains_key("reddit.com"));
     }
 
     #[test]

@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::blocking::{apps, hosts, platform};
@@ -185,14 +185,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     // This is the file the yf CLI reads and edits (point YF_CONFIG at it).
     let local_config: Value = load_json(&local_config_path(app));
     if !local_config.is_null() {
-        let local_set = schedule::evaluate(&local_config);
-        block_set.domains.extend(local_set.domains);
-        block_set.apps.extend(local_set.apps);
-        for name in local_set.active_lists {
-            if !block_set.active_lists.contains(&name) {
-                block_set.active_lists.push(name);
-            }
-        }
+        block_set.merge(schedule::evaluate(&local_config));
     }
 
     // 3b. Merge the local one-click working session (works with no account).
@@ -215,13 +208,18 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     };
     if session.is_running() {
         block_set.active_lists.push("Working session".to_string());
+        let until = session
+            .until
+            .as_deref()
+            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+            .map(|t| t.timestamp());
         for d in crate::settings::DEFAULT_SESSION_DOMAINS {
-            block_set.domains.insert(d.to_string());
+            block_set.block_domain(d.to_string(), until);
         }
         for d in &session.domains {
             let d = schedule::normalize_domain(d);
             if !d.is_empty() {
-                block_set.domains.insert(d);
+                block_set.block_domain(d, until);
             }
         }
         for a in &session.apps {
@@ -238,6 +236,9 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     block_set
         .domains
         .retain(|domain| !browser_exemptions.contains(domain));
+    block_set
+        .domain_until
+        .retain(|domain, _| !browser_exemptions.contains(domain));
 
     // 3c. Tough Mode (macOS): the root helper enforces the lock on its own;
     // merged here - after exemptions, which must never bend a locked domain -
@@ -246,7 +247,7 @@ pub async fn tick(app: &AppHandle) -> Result<(), String> {
     if let Some(lock) = &tough_lock {
         block_set.active_lists.push("Tough Mode".to_string());
         for d in &lock.domains {
-            block_set.domains.insert(d.clone());
+            block_set.block_domain(d.clone(), Some(lock.until_epoch));
         }
     }
 
@@ -328,9 +329,8 @@ fn apply_block_set(app: &AppHandle, block_set: &BlockSet) -> Result<(), String> 
         *blocked_apps = block_set.apps.clone();
     }
 
-    // Domains: only touch the spool/hosts when the set changed. `None` means
-    // first tick after launch - always write, to clean up any stale state a
-    // previous run left behind.
+    // Domains: `None` means first tick after launch, so a stale state a
+    // previous run left behind always counts as a change.
     let changed = {
         let mut last = state.last_domains.lock().unwrap();
         if last.as_ref() != Some(&block_set.domains) {
@@ -340,13 +340,15 @@ fn apply_block_set(app: &AppHandle, block_set: &BlockSet) -> Result<(), String> 
             false
         }
     };
+    // Direct write works if we happen to be elevated; otherwise the spool is
+    // picked up by the privileged applier. The spool is checked every tick,
+    // not only on change, so an end time that moved or a spool emptied by
+    // another exit is repaired too.
+    let applied_directly = changed && hosts::apply_direct(&block_set.domains).is_ok();
+    if !applied_directly && hosts::write_spool(&block_set.domains, &block_set.domain_until)? {
+        platform::trigger_apply();
+    }
     if changed {
-        // Direct write works if we happen to be elevated; otherwise the spool
-        // is picked up by the privileged applier.
-        if hosts::apply_direct(&block_set.domains).is_err() {
-            hosts::write_spool(&block_set.domains)?;
-            platform::trigger_apply();
-        }
         push_event(
             &state,
             "blocking_applied",
@@ -358,6 +360,18 @@ fn apply_block_set(app: &AppHandle, block_set: &BlockSet) -> Result<(), String> 
         );
     }
     Ok(())
+}
+
+/// Lifts this app's website blocks when it quits: nothing would be left to
+/// end them - a session would never expire, a schedule window never close.
+/// Tough Mode stays; the root helper holds its lock from its own state.
+pub fn release_blocking() {
+    let none = BTreeSet::new();
+    if hosts::apply_direct(&none).is_err()
+        && hosts::write_spool(&none, &BTreeMap::new()).unwrap_or(false)
+    {
+        platform::trigger_apply();
+    }
 }
 
 async fn ensure_fresh_token(app: &AppHandle, settings: &Settings) -> Option<Tokens> {

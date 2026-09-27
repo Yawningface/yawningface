@@ -17,9 +17,10 @@ pub const MAC_DAEMON_LABEL: &str = "org.yawningface.block.hostsd";
 
 /// Bumped whenever the applier script/plist changes so existing installs
 /// re-run the one-time setup. v2 added Tough Mode + hosts self-healing; v3
-/// makes request consumption and root lock persistence atomic.
+/// makes request consumption and root lock persistence atomic; v4 lifts
+/// time-boxed spool entries when they end, even with the app not running.
 #[cfg(target_os = "macos")]
-pub const MAC_HELPER_VERSION: u32 = 3;
+pub const MAC_HELPER_VERSION: u32 = 4;
 
 #[cfg(target_os = "macos")]
 fn mac_helper_version_installed() -> bool {
@@ -215,8 +216,18 @@ if [ "$REQUEST_PENDING" -eq 1 ]; then
   fi
 fi
 
-# --- Effective set = spool + locked domains, all re-validated. ---
-ALL=$( { [ -f "$SPOOL" ] && cat "$SPOOL"; printf '%s\n' "$LOCK_DOMAINS"; } | clean_domains)
+# --- Effective set = live spool entries + locked domains, all re-validated. ---
+# Spool lines after `# until <unix time>` are time-boxed: they drop out once
+# that time passes, so a session or schedule window still ends when the app
+# is not running to lift it. A malformed end keeps its domains blocked.
+live_spool() {
+  [ -f "$SPOOL" ] || return 0
+  awk -v now="$NOW" '
+    /^# until / { expired = ($3 ~ /^[0-9]+$/ && $3 + 0 <= now); next }
+    !expired { print }
+  ' "$SPOOL"
+}
+ALL=$( { live_spool; printf '%s\n' "$LOCK_DOMAINS"; } | clean_domains)
 
 SECTION="$BEGIN"$'\n'
 while IFS= read -r d; do
@@ -555,6 +566,40 @@ mod mac_helper_tests {
         let renewed = std::fs::read_to_string(lock_dir.join("lock.txt")).unwrap();
         assert!(renewed.contains("new.example"));
         assert!(!renewed.contains("old.example"));
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn helper_lifts_time_boxed_entries_once_they_end() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("yfblock-expiry-test-{nonce}"));
+        let lock_dir = root.join("root-lock");
+        let spool = root.join("spool_domains.txt");
+        let hosts = root.join("hosts");
+        std::fs::create_dir_all(&lock_dir).unwrap();
+        std::fs::write(&hosts, "127.0.0.1 localhost\n").unwrap();
+
+        let now = chrono::Utc::now().timestamp();
+        std::fs::write(
+            &spool,
+            format!(
+                "always.example\n# until {}\nended.example\n# until nonsense\nkept.example\n# until {}\nlater.example\n",
+                now - 1,
+                now + 600
+            ),
+        )
+        .unwrap();
+        run_helper(&spool, &hosts, &lock_dir);
+        let applied = std::fs::read_to_string(&hosts).unwrap();
+        assert!(applied.contains("0.0.0.0 always.example"));
+        assert!(!applied.contains("ended.example"));
+        assert!(applied.contains("0.0.0.0 kept.example"));
+        assert!(applied.contains("0.0.0.0 later.example"));
+        assert!(!applied.contains("until"));
 
         std::fs::remove_dir_all(root).unwrap();
     }

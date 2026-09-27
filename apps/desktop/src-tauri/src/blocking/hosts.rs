@@ -11,8 +11,12 @@
 //! Defense in depth: the applier re-validates each domain against a strict
 //! charset, so a tampered spool can at worst block domains, never remap them
 //! (entries always point to 0.0.0.0).
+//!
+//! Time-boxed domains follow a `# until <unix time>` line, so the applier can
+//! lift them when they end even if the app is not running to do it. Appliers
+//! that predate this skip those lines like any other invalid domain.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 pub const MARKER_BEGIN: &str = "# >>> YAWNINGFACE BLOCK BEGIN >>> (managed section, do not edit)";
@@ -70,17 +74,63 @@ pub fn is_valid_domain(d: &str) -> bool {
         && !d.starts_with('.')
 }
 
-/// Writes the desired blocked-domain set to the spool file.
-pub fn write_spool(domains: &BTreeSet<String>) -> Result<(), String> {
+/// Writes the desired blocked-domain set to the spool file, with the end of
+/// each time-boxed domain. Returns whether the file changed.
+pub fn write_spool(
+    domains: &BTreeSet<String>,
+    until: &BTreeMap<String, i64>,
+) -> Result<bool, String> {
+    let content = render_spool(domains, until);
+    if std::fs::read_to_string(spool_path()).is_ok_and(|current| current == content) {
+        return Ok(false);
+    }
     let dir = data_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let content: String = domains
-        .iter()
-        .filter(|d| is_valid_domain(d))
-        .cloned()
-        .collect::<Vec<_>>()
-        .join("\n");
-    std::fs::write(spool_path(), content + "\n").map_err(|e| e.to_string())
+    std::fs::write(spool_path(), content).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// The spool's domains and the end of each time-boxed one.
+pub fn read_spool() -> (BTreeSet<String>, BTreeMap<String, i64>) {
+    parse_spool(&std::fs::read_to_string(spool_path()).unwrap_or_default())
+}
+
+fn render_spool(domains: &BTreeSet<String>, until: &BTreeMap<String, i64>) -> String {
+    // `None` sorts first: domains with no end come before any `# until` line.
+    let mut groups: BTreeMap<Option<i64>, Vec<&str>> = BTreeMap::new();
+    for d in domains.iter().filter(|d| is_valid_domain(d)) {
+        groups.entry(until.get(d).copied()).or_default().push(d);
+    }
+    let mut content = String::new();
+    for (end, group) in groups {
+        if let Some(end) = end {
+            content.push_str(&format!("# until {end}\n"));
+        }
+        for d in group {
+            content.push_str(d);
+            content.push('\n');
+        }
+    }
+    content
+}
+
+fn parse_spool(content: &str) -> (BTreeSet<String>, BTreeMap<String, i64>) {
+    let mut domains = BTreeSet::new();
+    let mut until = BTreeMap::new();
+    let mut end: Option<i64> = None;
+    for line in content.lines() {
+        let line = line.trim().to_ascii_lowercase();
+        if let Some(header) = line.strip_prefix("# until ") {
+            // A malformed end keeps the domains blocked, as the applier does.
+            end = header.trim().parse().ok();
+        } else if is_valid_domain(&line) {
+            if let Some(end) = end {
+                until.insert(line.clone(), end);
+            }
+            domains.insert(line);
+        }
+    }
+    (domains, until)
 }
 
 fn render_section(domains: &[String]) -> String {
@@ -216,6 +266,19 @@ mod tests {
         let v2 = merge_into_hosts(&v1, &[]);
         assert!(!v2.contains("a.com"));
         assert!(v2.contains(MARKER_BEGIN));
+    }
+
+    #[test]
+    fn spool_lists_open_ended_domains_before_time_boxed_ones() {
+        let domains = BTreeSet::from([
+            "a.com".to_string(),
+            "b.com".to_string(),
+            "c.com".to_string(),
+        ]);
+        let until = BTreeMap::from([("a.com".to_string(), 200), ("c.com".to_string(), 100)]);
+        let content = render_spool(&domains, &until);
+        assert_eq!(content, "b.com\n# until 100\nc.com\n# until 200\na.com\n");
+        assert_eq!(parse_spool(&content), (domains, until));
     }
 
     #[test]

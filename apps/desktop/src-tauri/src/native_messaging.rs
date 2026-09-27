@@ -499,16 +499,9 @@ pub fn active_exemptions() -> BTreeSet<String> {
 /// normal engine reads the exemption receipt on its next tick and keeps the
 /// domain out until the ten-minute window expires.
 fn apply_exemption_now(exempted_domains: &BTreeSet<String>) -> Result<(), String> {
-    let content = std::fs::read_to_string(crate::blocking::hosts::spool_path()).unwrap_or_default();
-    let domains: BTreeSet<String> = content
-        .lines()
-        .map(|line| line.trim().to_ascii_lowercase())
-        .filter(|candidate| {
-            crate::blocking::hosts::is_valid_domain(candidate)
-                && !exempted_domains.contains(candidate)
-        })
-        .collect();
-    crate::blocking::hosts::write_spool(&domains)?;
+    let (mut domains, until) = crate::blocking::hosts::read_spool();
+    domains.retain(|domain| !exempted_domains.contains(domain));
+    crate::blocking::hosts::write_spool(&domains, &until)?;
     crate::blocking::platform::trigger_apply();
 
     // Do not tell the block page to navigate until the privileged helper has

@@ -15,9 +15,8 @@ pub struct AppState {
     pub event_queue: Mutex<Vec<OutEvent>>,
     /// App names the killer loop must terminate right now.
     pub blocked_apps: Mutex<BTreeSet<String>>,
-    /// Last domain set written to the spool (change detection). `None` until
-    /// the first tick so startup always reconciles the spool/hosts with the
-    /// real desired state - a stale spool from a previous run must be fixed.
+    /// Last domain set applied (change detection). `None` until the first tick
+    /// so startup always counts as a change.
     pub last_domains: Mutex<Option<BTreeSet<String>>>,
     pub http: reqwest::Client,
 }
